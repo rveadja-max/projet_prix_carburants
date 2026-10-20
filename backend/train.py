@@ -3,7 +3,7 @@ import json
 import time
 
 import joblib
-from sklearn.model_selection import TimeSeriesSplit, cross_val_score
+from sklearn.model_selection import cross_val_score
 
 from backend.config import (
     ANNEES, DOSSIER_HISTORIQUE, FICHIER_BRENT, FICHIER_METRIQUES, FICHIER_MODELE, FICHIER_TAUX,
@@ -13,7 +13,7 @@ from backend.data import charger_brut_dans_sqlite, enregistrer_table_analyse, li
 from backend.download import chemin_archive, telecharger_tout
 from backend.model import (
     CIBLE, VARIABLES_AVEC_BRENT, VARIABLES_BRENT_REALISTE, VARIABLES_SANS_BRENT,
-    couts_moyens, couts_references, creer_pipeline, decouper_temporel, evaluer, seuil_optimal,
+    couts_moyens, couts_references, creer_pipeline, decouper_temporel, evaluer, plis_temporels, seuil_optimal,
 )
 
 MODELES = {
@@ -32,7 +32,7 @@ def entrainer_modele(variables, entrainement, test, seuil: float) -> tuple:
     """AUC en validation croisée temporelle sur l'entraînement, ajustement, évaluation sur le test."""
     pipeline = creer_pipeline()
     auc_cv = cross_val_score(
-        pipeline, entrainement[variables], entrainement[CIBLE], cv=TimeSeriesSplit(n_splits=3), scoring="roc_auc",
+        pipeline, entrainement[variables], entrainement[CIBLE], cv=plis_temporels(entrainement["jour"]), scoring="roc_auc",
     )
     pipeline.fit(entrainement[variables], entrainement[CIBLE])
     resultat = evaluer(pipeline, test[variables], test[CIBLE], test["variation_future"], seuil)

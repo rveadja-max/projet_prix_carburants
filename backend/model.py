@@ -70,9 +70,25 @@ def decouper_temporel(
     d'entraînement (J + horizon) ne recouvre pas le test. Les deux sont triés par `jour`."""
     jours = pd.to_datetime(table["jour"])
     fin = pd.Timestamp(fin_entrainement)
-    entrainement = table[jours <= fin].sort_values("jour")
-    test = table[jours > fin + pd.Timedelta(days=purge_jours)].sort_values("jour")
+    entrainement = table[jours <= fin].sort_values(["jour", "station"])
+    test = table[jours > fin + pd.Timedelta(days=purge_jours)].sort_values(["jour", "station"])
     return entrainement.copy(), test.copy()
+
+
+def plis_temporels(
+    jours: pd.Series, n_plis: int = 3, purge_jours: int = PURGE_JOURS,
+) -> list[tuple[np.ndarray, np.ndarray]]:
+    """Plis de validation croisée par jours entiers, fenêtre croissante. Les jours uniques triés sont
+    coupés en n_plis + 1 blocs consécutifs ; le pli k valide sur le bloc k + 1 et s'entraîne sur les
+    jours <= premier jour de validation - purge_jours - 1, pour que les cibles (J + horizon) de
+    l'entraînement ne recouvrent pas la validation. Renvoie des positions (utilisables comme `cv=`)."""
+    dates = pd.to_datetime(pd.Series(np.asarray(jours))).reset_index(drop=True)
+    blocs = np.array_split(np.sort(dates.unique()), n_plis + 1)
+    plis = []
+    for bloc in blocs[1:]:
+        limite = bloc[0] - pd.Timedelta(days=purge_jours + 1)
+        plis.append((np.flatnonzero((dates <= limite).to_numpy()), np.flatnonzero(dates.isin(bloc).to_numpy())))
+    return plis
 
 
 def creer_pipeline() -> Pipeline:

@@ -41,7 +41,7 @@ def test_references():
 
 def test_split_temporel_sans_chevauchement():
     jours = pd.date_range("2026-04-25", "2026-05-10").strftime("%Y-%m-%d")
-    entrainement, test = decouper_temporel(pd.DataFrame({"jour": jours}), "2026-04-30", 3)
+    entrainement, test = decouper_temporel(pd.DataFrame({"jour": jours, "station": "S1"}), "2026-04-30", 3)
     assert entrainement["jour"].max() == "2026-04-30"
     assert test["jour"].min() == "2026-05-04"
 
@@ -91,3 +91,19 @@ def test_station_trop_courte_exclue_et_segmentation_possible():
     profils = profils_stations(table)
     assert 99 not in profils.index and len(profils) == 10
     assert set(segmenter(profils, k=2)["segment"]) == {0, 1}
+
+
+def test_plis_temporels_purges_et_consecutifs():
+    from backend.model import plis_temporels
+
+    jours = pd.Series(sorted(pd.date_range("2026-01-01", periods=20).strftime("%Y-%m-%d").tolist() * 2))
+    dates = pd.to_datetime(jours)
+    plis = plis_temporels(jours, n_plis=3, purge_jours=3)
+    assert len(plis) == 3
+    for entrainement, validation in plis:
+        assert not set(dates.iloc[entrainement]) & set(dates.iloc[validation])
+        assert dates.iloc[entrainement].max() + pd.Timedelta(days=3) < dates.iloc[validation].min()
+    # 20 jours en 4 blocs de 5 : validations = jours 6-10, 11-15, 16-20, consécutives.
+    attendu = [(5, 10), (10, 15), (15, 20)]
+    for (_, validation), (a, b) in zip(plis, attendu):
+        assert list(dates.iloc[validation].dt.day.unique()) == list(range(a + 1, b + 1))
