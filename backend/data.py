@@ -199,3 +199,11 @@ def lire_table_enregistree(base: Path = BASE) -> pd.DataFrame:
         if not existe:
             raise FileNotFoundError(f"Table d'analyse absente de {base}. {MESSAGE_RELANCE}")
         return pd.read_sql("select * from table_analyse", con)
+
+
+def lire_stations(base: Path = BASE) -> pd.DataFrame:
+    """Lit la table SQLite `stations` : station, cp, departement, zone, ville, adresse."""
+    if not base.exists():
+        raise FileNotFoundError(f"Base introuvable : {base}. {MESSAGE_RELANCE}")
+    with closing(sqlite3.connect(base)) as con:
+        return pd.read_sql("select * from stations", con)
