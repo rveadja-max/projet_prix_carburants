@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from backend import train
+from backend.config import FICHIER_MODELE
 from backend.data import charger_brut_dans_sqlite
 
 DATE_FIN_TEST = "2026-01-31"
@@ -83,3 +85,9 @@ def base_test(tmp_path_factory) -> Path:
         [archive], dossier / "brent.csv", dossier / "eurusd.csv", base, date_fin=DATE_FIN_TEST
     )
     return base
+
+
+@pytest.fixture(scope="session")
+def modele_entraine():
+    if not FICHIER_MODELE.exists():
+        train.main()
