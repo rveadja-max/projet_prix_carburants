@@ -60,7 +60,7 @@ def test_profils_stations():
         "ecart_mediane_dep": [0.02, 0.04, 0.0, 0.02, -0.01, -0.01],
         "var_prix_1j": [0.0, 0.01, 0.0, -0.01, 0.0, 0.0],
     })
-    profils = profils_stations(table)
+    profils = profils_stations(table, jours_min=2)
     assert list(profils.columns) == VARIABLES_PROFIL
     assert profils.loc[1, "prix_relatif"] == pytest.approx(2.0)
     assert profils.loc[1, "changements_par_semaine"] == pytest.approx(7 * 0.5)
@@ -78,3 +78,16 @@ def test_evaluer_et_pipeline():
     assert resultat["roc_auc"] > 0.9
     assert set(resultat) == {"roc_auc", "cout_moyen_modele", "cout_moyen_seuil_05", "importance_permutation"}
     assert next(iter(resultat["importance_permutation"])) == "var_prix_1j"
+
+
+def test_station_trop_courte_exclue_et_segmentation_possible():
+    generateur = np.random.default_rng(1)
+    stations = np.repeat(np.arange(10), 40)
+    table = pd.DataFrame({
+        "station": np.append(stations, 99),
+        "ecart_mediane_dep": np.append(generateur.normal(size=400), 0.0),
+        "var_prix_1j": np.append(generateur.normal(size=400), np.nan),
+    })
+    profils = profils_stations(table)
+    assert 99 not in profils.index and len(profils) == 10
+    assert set(segmenter(profils, k=2)["segment"]) == {0, 1}

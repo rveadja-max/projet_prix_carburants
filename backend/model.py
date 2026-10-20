@@ -8,7 +8,7 @@ from sklearn.metrics import roc_auc_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from backend.config import DATE_FIN_ENTRAINEMENT, PURGE_JOURS, SEED
+from backend.config import DATE_FIN_ENTRAINEMENT, JOURS_MIN_PROFIL, PURGE_JOURS, SEED
 
 VARIABLES_SANS_BRENT = [
     "prix", "var_prix_1j", "var_prix_3j", "var_prix_7j", "ecart_mediane_dep",
@@ -76,8 +76,9 @@ def decouper_temporel(
 
 
 def creer_pipeline() -> Pipeline:
+    """Forêt sans pondération des classes, car le seuil issu des coûts exige des probabilités non déformées."""
     foret = RandomForestClassifier(
-        n_estimators=200, min_samples_leaf=100, max_samples=0.5, class_weight="balanced",
+        n_estimators=200, min_samples_leaf=100, max_samples=0.5,
         random_state=SEED, n_jobs=-1,
     )
     return Pipeline([("foret", foret)])
@@ -103,14 +104,17 @@ def evaluer(pipeline: Pipeline, X_test: pd.DataFrame, y_test, variation_future_t
     }
 
 
-def profils_stations(table: pd.DataFrame) -> pd.DataFrame:
-    """Une ligne par station : prix relatif (c€/L), changements de prix par semaine, volatilité (c€/L)."""
+def profils_stations(table: pd.DataFrame, jours_min: int = JOURS_MIN_PROFIL) -> pd.DataFrame:
+    """Une ligne par station ayant au moins JOURS_MIN_PROFIL lignes : prix relatif (c€/L),
+    changements de prix par semaine (valeurs manquantes ignorées), volatilité (c€/L)."""
     groupes = table.groupby("station")
-    return pd.DataFrame({
+    profils = pd.DataFrame({
         "prix_relatif": groupes["ecart_mediane_dep"].mean() * 100,
-        "changements_par_semaine": 7 * groupes["var_prix_1j"].apply(lambda s: (s != 0).mean()),
+        "changements_par_semaine": 7 * groupes["var_prix_1j"].apply(lambda s: (s.dropna() != 0).mean()),
         "volatilite": groupes["var_prix_1j"].std() * 100,
+        "nb_jours": groupes.size(),
     })
+    return profils[profils["nb_jours"] >= jours_min][VARIABLES_PROFIL]
 
 
 def segmenter(profils: pd.DataFrame, k: int = 3) -> pd.DataFrame:

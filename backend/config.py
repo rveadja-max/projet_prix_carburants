@@ -37,6 +37,9 @@ RETARD_TAUX_JOURS = 1
 DATE_FIN_ENTRAINEMENT = "2026-04-30"
 PURGE_JOURS = HORIZON_JOURS
 
+# Une station doit avoir au moins ce nombre de jours observés pour avoir un profil.
+JOURS_MIN_PROFIL = 30
+
 # Flotte de l'entreprise cliente : hypothèse fictive.
 NB_VEHICULES = 40
 LITRES_PAR_PLEIN = 60
