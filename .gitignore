@@ -20,6 +20,8 @@ data/interim/*
 !data/interim/.gitkeep
 data/processed/*
 !data/processed/.gitkeep
+data/carburants.db
+models/
 artifacts/*
 !artifacts/.gitkeep
 
