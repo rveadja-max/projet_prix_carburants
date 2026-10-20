@@ -1,0 +1,12 @@
+# Dossier documentaire
+- `cadrage/` : exigences, question métier et synthèse conceptuelle.
+- `architecture.md` : frontière backend/frontend.
+- `plan_execution.md` : phases et portes de validation.
+- `roles_equipe.md` : répartition et règles de collaboration.
+- `qualite_et_tests.md` : checklist de validation.
+- `data_quality_card.md` : carte qualité à compléter après audit.
+- `model_card.md` : carte de modèle à remplir avec résultats réels.
+- `note_synthese.md` : structure de la note de deux pages.
+- `journal_ia.md` : traçabilité des usages IA.
+- `plan_soutenance.md` : narration de la soutenance.
+- `prompts/` : prompts de travail à exécuter séquentiellement avec Claude Code.

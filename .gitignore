@@ -1,0 +1,36 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+
+# Données brutes et artefacts potentiellement volumineux : politique à confirmer en équipe
+data/raw/*
+!data/raw/.gitkeep
+data/interim/*
+!data/interim/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+artifacts/*
+!artifacts/.gitkeep
+
+.streamlit/secrets.toml
+*.log
+
+# Dépôt externe ECC (outils Claude, non versionné)
+ECC-main/
+
+# Tournois du skill arena (fichiers de travail)
+.arena/
+
+# Espace de travail des agents (journal, briefs, revues)
+.superpowers/
