@@ -51,3 +51,15 @@ def test_gain_vs_situation_actuelle_et_valeur_du_brent(modele_entraine):
     attendu = m["modeles"]["sans_brent"]["cout_moyen_modele"] - m["modeles"]["avec_brent"]["cout_moyen_modele"]
     assert v["moyenne"] == pytest.approx(attendu) and v["bas"] <= v["moyenne"] <= v["haut"]
     assert v["economie_annuelle_euros"] == pytest.approx(attendu / 100 * m["litres_par_an"])
+
+
+def test_regret_par_mois_coherent_avec_les_couts(modele_entraine):
+    m = json.loads(FICHIER_METRIQUES.read_text(encoding="utf-8"))
+    mois = m["regret_par_mois"]
+    assert [ligne["mois"] for ligne in mois] == sorted(ligne["mois"] for ligne in mois)
+    assert sum(ligne["nb_lignes"] for ligne in mois) == m["nb_lignes_test"]
+    # La moyenne des mois, pondérée par leurs lignes, redonne le regret de toute la période.
+    total = sum(ligne["sans_brent"] * ligne["nb_lignes"] for ligne in mois) / m["nb_lignes_test"]
+    assert total == pytest.approx(m["modeles"]["sans_brent"]["cout_moyen_modele"])
+    plein = sum(ligne["toujours_plein"] * ligne["nb_lignes"] for ligne in mois) / m["nb_lignes_test"]
+    assert plein == pytest.approx(m["couts"]["toujours_plein"])

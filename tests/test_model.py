@@ -215,3 +215,14 @@ def test_intervalle_gain_encadre_la_moyenne_et_tire_des_semaines_entieres():
     assert r["moyenne"] == pytest.approx(0.75)  # 35 lignes × 3 c€ / 140 lignes
     assert r["bas"] == pytest.approx(0.0) and r["bas"] <= r["moyenne"] <= r["haut"]
     assert r == intervalle_gain(jours, reference, np.ones(140), n_tirages=500)  # graine fixée
+
+
+def test_regret_par_mois():
+    from backend.model import regret_par_mois
+
+    jours = pd.Series(["2026-05-30", "2026-05-31", "2026-06-01", "2026-06-02", "2026-06-03"])
+    r = regret_par_mois(jours, {"plein": np.array([2.0, 0.0, 1.0, 1.0, 4.0]), "modele": np.array([1.0, 1.0, 0.0, 0.0, 3.0])})
+    assert r == [
+        {"mois": "2026-05", "nb_lignes": 2, "plein": pytest.approx(1.0), "modele": pytest.approx(1.0)},
+        {"mois": "2026-06", "nb_lignes": 3, "plein": pytest.approx(2.0), "modele": pytest.approx(1.0)},
+    ]
