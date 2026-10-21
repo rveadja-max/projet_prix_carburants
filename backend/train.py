@@ -15,7 +15,7 @@ from backend.download import chemin_archive, telecharger_tout
 from backend.model import (
     CIBLE, VARIABLES_AVEC_BRENT, VARIABLES_BRENT_REALISTE, VARIABLES_SANS_BRENT,
     couts_moyens, couts_references, creer_pipeline, decouper_temporel, evaluer, evaluer_choix_station,
-    intervalle_gain, plis_temporels, profils_stations, regret, seuil_optimal,
+    intervalle_gain, plis_temporels, profils_stations, regret, regret_par_mois, seuil_optimal,
 )
 
 MODELES = {
@@ -100,6 +100,9 @@ def main() -> dict:
         "economie_annuelle_euros": float(
             (couts["toujours_plein"] - modeles["avec_brent"]["cout_moyen_modele"]) / 100 * LITRES_PAR_AN
         ),
+        "regret_par_mois": regret_par_mois(test["jour"], {
+            "toujours_plein": regret(test["variation_future"], np.ones(len(test), dtype=bool)), **regrets,
+        }),
         # Ce qu'apporte un cours du Brent de la veille (flux quotidien payant) au modèle sans Brent.
         "valeur_brent_veille": en_euros_par_an(
             intervalle_gain(test["jour"], regrets["sans_brent"], regrets["avec_brent"])
