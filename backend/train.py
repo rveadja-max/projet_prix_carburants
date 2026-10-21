@@ -7,13 +7,14 @@ from sklearn.model_selection import cross_val_score
 
 from backend.config import (
     ANNEES, DOSSIER_HISTORIQUE, FICHIER_BRENT, FICHIER_METRIQUES, FICHIER_MODELE, FICHIER_TAUX,
-    LITRES_PAR_AN,
+    LITRES_PAR_AN, PLEINS_PAR_AN, RAYON_KM,
 )
-from backend.data import charger_brut_dans_sqlite, enregistrer_table_analyse, lire_table_analyse
+from backend.data import charger_brut_dans_sqlite, enregistrer_table_analyse, lire_stations, lire_table_analyse
 from backend.download import chemin_archive, telecharger_tout
 from backend.model import (
     CIBLE, VARIABLES_AVEC_BRENT, VARIABLES_BRENT_REALISTE, VARIABLES_SANS_BRENT,
-    couts_moyens, couts_references, creer_pipeline, decouper_temporel, evaluer, plis_temporels, seuil_optimal,
+    couts_moyens, couts_references, creer_pipeline, decouper_temporel, evaluer, evaluer_choix_station,
+    plis_temporels, profils_stations, seuil_optimal,
 )
 
 MODELES = {
@@ -61,6 +62,16 @@ def main() -> dict:
         pipelines[nom], modeles[nom] = entrainer_modele(variables, entrainement, test, seuil)
 
     couts = couts_references(test["variation_future"])
+    # Choix de la station : alternatives apprises sur l'entraînement, gain mesuré sur le test.
+    prix_litre = float(test["prix"].median())
+    stations = lire_stations()
+    ecarts = profils_stations(entrainement)["prix_relatif"], profils_stations(test)["prix_relatif"]
+    choix_station = {
+        "rayon_km": RAYON_KM,
+        "prix_litre": prix_litre,
+        "avec_detour": evaluer_choix_station(stations, *ecarts, prix_litre, avec_detour=True),
+        "sur_tournee": evaluer_choix_station(stations, *ecarts, prix_litre, avec_detour=False),
+    }
     metriques = {
         "nb_stations": int(table["station"].nunique()),
         "nb_lignes_entrainement": int(len(entrainement)),
@@ -72,6 +83,8 @@ def main() -> dict:
         "baisse_moyenne_c": baisse_moyenne,
         "seuil": float(seuil),
         "litres_par_an": int(LITRES_PAR_AN),
+        "pleins_par_an": int(PLEINS_PAR_AN),
+        "choix_station": choix_station,
         "couts": couts,
         "modeles": modeles,
         "economie_annuelle_euros": float(

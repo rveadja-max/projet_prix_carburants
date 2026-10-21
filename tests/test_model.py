@@ -107,3 +107,81 @@ def test_plis_temporels_purges_et_consecutifs():
     attendu = [(5, 10), (10, 15), (15, 20)]
     for (_, validation), (a, b) in zip(plis, attendu):
         assert list(dates.iloc[validation].dt.day.unique()) == list(range(a + 1, b + 1))
+
+
+# --- Choix de la station : top-N des stations moins chères à proximité, net du coût du détour ---
+
+def stations_voisines() -> pd.DataFrame:
+    """A : station habituelle. B et E proches et moins chères ; C plus chère ; D trop loin ; F sans position."""
+    un_km_lat = 1 / 111.195  # 1 km vers le nord, en degrés de latitude
+    return pd.DataFrame({
+        "station": ["A", "B", "C", "D", "E", "F"],
+        "latitude": [50.0, 50.0 + un_km_lat, 50.0 + un_km_lat, 50.0 + 10 * un_km_lat, 50.0 + 0.1 * un_km_lat, None],
+        "longitude": [3.0] * 6,
+    })
+
+
+def test_distance_un_degre_de_latitude():
+    from backend.model import distance_km
+
+    assert distance_km(50.0, 3.0, 51.0, 3.0) == pytest.approx(111.195, rel=1e-3)
+    assert distance_km(50.0, 3.0, 50.0, 3.0) == pytest.approx(0.0)
+
+
+def test_cout_du_detour():
+    from backend.model import cout_detour_euros
+
+    # Aller-retour de 1 km à vol d'oiseau : 2 × 1 × 1,3 = 2,6 km sur route.
+    # Coût par km : carburant 9 L/100 km × 2 €/L = 0,18 € + chauffeur 30 €/h ÷ 30 km/h = 1 € -> 1,18 €.
+    assert cout_detour_euros(1.0, 2.0) == pytest.approx(2.6 * 1.18)
+    assert cout_detour_euros(0.0, 2.0) == 0.0
+
+
+def test_alternatives_dans_le_rayon_moins_cheres_et_rentables():
+    from backend.model import alternatives_station
+
+    # Écart moyen au prix médian du département, en c€/L (appris sur l'entraînement).
+    ecarts = pd.Series({"A": 5.0, "B": -5.0, "C": 8.0, "D": -20.0, "E": 4.0, "F": -30.0})
+    resultat = alternatives_station(stations_voisines(), ecarts, "A", prix_litre=2.0, rayon_km=5, n=3)
+    # B : 10 c€/L × 60 L = 6 € − 3,068 € de détour ; E : 1 c€/L × 60 L = 0,6 € − 0,307 €.
+    # C plus chère, D hors rayon, F sans position : exclues.
+    assert list(resultat["station"]) == ["B", "E"]
+    assert resultat["gain_c_l"].tolist() == pytest.approx([10.0, 1.0])
+    assert resultat["gain_plein_euros"].tolist() == pytest.approx([6 - 3.068, 0.6 - 0.3068], rel=1e-3)
+    assert list(alternatives_station(stations_voisines(), ecarts, "A", 2.0, 5, n=1)["station"]) == ["B"]
+
+
+def test_alternative_non_rentable_exclue():
+    from backend.model import alternatives_station
+
+    # 0,5 c€/L × 60 L = 0,30 € de gain, pour 3,07 € de détour : on reste à la station habituelle.
+    ecarts = pd.Series({"A": 1.0, "B": 0.5})
+    assert alternatives_station(stations_voisines().iloc[:2], ecarts, "A", 2.0, 5, n=3).empty
+
+
+def test_evaluer_choix_station_sur_le_test():
+    from backend.model import evaluer_choix_station
+
+    stations = stations_voisines().iloc[:2]           # A et B, à 1 km
+    ecarts_entrainement = pd.Series({"A": 5.0, "B": -5.0})  # B choisie pour A ; aucune alternative pour B
+    ecarts_test = pd.Series({"A": 4.0, "B": -2.0})          # au test, B n'est plus que 6 c€/L moins chère
+    r = evaluer_choix_station(stations, ecarts_entrainement, ecarts_test, prix_litre=2.0, rayon_km=5)
+    assert r["nb_stations"] == 2
+    assert r["part_avec_alternative"] == pytest.approx(0.5)
+    # A : 6 c€/L réalisés ; B : reste, 0. Moyenne : 3 c€/L.
+    assert r["gain_moyen_c_l"] == pytest.approx(3.0)
+    # A : 6 c€/L × 60 L = 3,60 € − 3,068 € ; B : 0. Moyenne par plein :
+    assert r["gain_moyen_plein_euros"] == pytest.approx((3.6 - 3.068) / 2, rel=1e-3)
+    assert r["economie_annuelle_euros"] == pytest.approx(r["gain_moyen_plein_euros"] * 40 * 52)
+
+
+def test_station_sur_la_tournee_sans_cout_de_detour():
+    from backend.model import alternatives_station, evaluer_choix_station
+
+    # Plafond du levier : la station moins chère est sur la tournée, aucun détour à payer.
+    ecarts = pd.Series({"A": 1.0, "B": 0.5})
+    r = alternatives_station(stations_voisines().iloc[:2], ecarts, "A", 2.0, 5, n=3, avec_detour=False)
+    assert list(r["station"]) == ["B"] and r["gain_plein_euros"].iloc[0] == pytest.approx(0.30)
+    e = evaluer_choix_station(stations_voisines().iloc[:2], ecarts, pd.Series({"A": 1.0, "B": 0.0}), 2.0, 5,
+                              avec_detour=False)
+    assert e["gain_moyen_c_l"] == pytest.approx(0.5) and e["gain_moyen_plein_euros"] == pytest.approx(0.30)

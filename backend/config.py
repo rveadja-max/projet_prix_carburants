@@ -45,5 +45,14 @@ NB_VEHICULES = 40
 LITRES_PAR_PLEIN = 60
 PLEINS_PAR_SEMAINE = 1
 LITRES_PAR_AN = NB_VEHICULES * LITRES_PAR_PLEIN * PLEINS_PAR_SEMAINE * 52
+PLEINS_PAR_AN = NB_VEHICULES * PLEINS_PAR_SEMAINE * 52
+
+# Choix de la station (top-N) : coût d'un détour vers une station moins chère. Hypothèses fictives.
+RAYON_KM = 5.0              # alternatives cherchées à moins de 5 km à vol d'oiseau de la station habituelle
+NB_ALTERNATIVES = 3         # nombre de stations proposées
+FACTEUR_ROUTE = 1.3         # distance sur route ≈ 1,3 × distance à vol d'oiseau
+CONSO_L_100KM = 9.0         # consommation d'un utilitaire diesel
+COUT_HORAIRE_EUROS = 30.0   # coût horaire chargé du chauffeur
+VITESSE_KMH = 30.0          # vitesse moyenne en agglomération
 
 SEED = 42

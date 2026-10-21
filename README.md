@@ -26,6 +26,17 @@ Regret d'une décision = prix payé − min(prix aujourd'hui, prix dans 3 jours)
 - La variable la plus utile est la variation du Brent sur 7 jours (importance par permutation).
 - La segmentation K-means (3 segments) isole 67 stations chères, à 7,76 c€/L au-dessus de la médiane de leur département en moyenne.
 
+### Choisir la station : top-3 des stations moins chères à moins de 5 km
+
+Pour chaque station habituelle, le modèle propose jusqu'à 3 stations à moins de 5 km (vol d'oiseau) moins chères en moyenne sur l'entraînement. Une station n'est proposée que si le gain par plein (écart × 60 L) dépasse le coût du détour aller-retour : carburant et temps du chauffeur (hypothèses fictives dans `backend/config.py` : route = 1,3 × vol d'oiseau, 9 L/100 km, 30 €/h, 30 km/h). Gain mesuré sur la période de test, sur 402 stations :
+
+| Scénario | Stations où l'on change | Gain moyen (c€/L) | Gain net par plein | Économie annuelle (flotte fictive) |
+|---|---|---|---|---|
+| La station moins chère impose un détour | 14 % | 0,73 | 0,03 € | ≈ 66 € |
+| Plafond : la station moins chère est sur la tournée | 72 % | 2,17 | 1,30 € | ≈ 2 710 € |
+
+Le temps du chauffeur mange presque tout le gain d'un détour. Le levier ne vaut que pour des stations déjà sur la tournée : c'est au gestionnaire de le vérifier, car les tournées ne sont pas dans les données.
+
 Le meilleur écart avec la situation actuelle est de 0,58 c€/L, soit environ 730 € par an pour la flotte fictive (124 800 L). Le plafond (connaître l'avenir) vaut 1,24 c€/L, soit environ 1 550 € par an : l'enjeu est modeste.
 
 ## Lancer le projet
@@ -35,7 +46,7 @@ Dans un environnement virtuel (`python -m venv .venv`, puis `source .venv/bin/ac
 ```bash
 pip install -r requirements.txt
 python -m backend.train                 # téléchargement, SQLite + table d'analyse SQL + entraînement
-python -m pytest                        # 45 tests
+python -m pytest                        # 58 tests
 python -m streamlit run frontend/app.py # démonstrateur
 ```
 
@@ -49,7 +60,7 @@ backend/                 logique métier (aucun import de streamlit)
   download.py            téléchargement des archives, du Brent et du taux de change + manifeste
   sql/table_analyse.sql  table d'analyse construite en SQL (prix, stations, Brent, taux)
   data.py                fichiers bruts -> SQLite -> table d'analyse
-  model.py               Random Forest, seuil, regret, K-means
+  model.py               Random Forest, seuil, regret, K-means, choix de la station (top-3 net du détour)
   train.py               entraînement des 3 modèles et sauvegarde
   service.py             SEULE interface appelée par le frontend
 frontend/
@@ -71,7 +82,7 @@ models/                  modèle et métriques produits par l'entraînement (ign
 - Une seule période de test (2026-05-04 → 2026-10-16), pendant une crise des prix (gazole et Brent en forte hausse en 2026). Les résultats ne sont pas garantis hors de ce contexte, et la validation croisée varie d'un pli à l'autre (écart-type de 0,01 à 0,06 selon le modèle).
 - Le 1er janvier 2026, la médiane nationale saute de 1,554 à 1,599 €/L en deux jours. La cause n'est pas vérifiée (une évolution de fiscalité est probable, non confirmée).
 - Les volumes de la flotte (40 véhicules, 60 L, 1 plein par semaine) sont fictifs. Les euros par an en dépendent directement.
-- Gazole seulement, départements 59 et 62, stations hors autoroute. Aucun calcul d'itinéraire ni de détour.
+- Gazole seulement, départements 59 et 62, stations hors autoroute. Aucun calcul d'itinéraire : le détour vers une autre station est estimé à vol d'oiseau × 1,3, et les tournées réelles sont inconnues.
 - Le modèle est une aide à la décision : le gestionnaire décide.
 
 ## Retours du COMEX et ce que nous avons changé

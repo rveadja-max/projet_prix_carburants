@@ -5,9 +5,11 @@ from functools import lru_cache
 import joblib
 import pandas as pd
 
-from backend.config import FICHIER_METRIQUES, FICHIER_MODELE
+from backend.config import DATE_FIN_ENTRAINEMENT, FICHIER_METRIQUES, FICHIER_MODELE
 from backend.data import lire_stations, lire_table_enregistree
-from backend.model import VARIABLES_AVEC_BRENT, VARIABLES_PROFIL, profils_stations, segmenter
+from backend.model import (
+    VARIABLES_AVEC_BRENT, VARIABLES_PROFIL, alternatives_station, profils_stations, segmenter,
+)
 
 DECISION_PLEIN = "faire le plein"
 DECISION_ATTENTE = "attendre 3 jours"
@@ -77,6 +79,28 @@ def conseiller(station: str, jour: str) -> dict:
         "decision": DECISION_PLEIN if proba > seuil else DECISION_ATTENTE,
         "brent_eur": float(ligne["brent_eur"]),
     }
+
+
+@lru_cache(maxsize=1)
+def _ecarts_entrainement() -> pd.Series:
+    """Écart moyen au prix médian du département (c€/L) sur l'entraînement, pour les stations encore
+    présentes dans la période de test : on ne propose pas une station disparue."""
+    table = lire_table_enregistree()
+    ecarts = profils_stations(table[table["jour"] <= DATE_FIN_ENTRAINEMENT])["prix_relatif"]
+    return ecarts[ecarts.index.isin(_table_test()["station"].unique())]
+
+
+def alternatives(station: str) -> pd.DataFrame:
+    """Top-N des stations proches moins chères que `station`, au gain par plein positif une fois le
+    détour payé. Colonnes : station, ville, adresse, distance_km, gain_c_l, gain_plein_euros."""
+    if station not in set(_table_test()["station"]):
+        raise ValueError(f"Station inconnue : {station}")
+    stations = lire_stations()
+    prix_litre = float(metriques()["choix_station"]["prix_litre"])
+    top = alternatives_station(stations, _ecarts_entrainement(), station, prix_litre)
+    top = top.merge(stations[["station", "ville", "adresse"]], on="station", how="left")
+    colonnes = ["station", "ville", "adresse", "distance_km", "gain_c_l", "gain_plein_euros"]
+    return top[colonnes].round({"distance_km": 1, "gain_c_l": 2, "gain_plein_euros": 2})
 
 
 def profils_segments(k: int = 3) -> pd.DataFrame:

@@ -50,6 +50,24 @@ with onglet_conseil:
             else:
                 st.warning(texte)
 
+    rayon = metriques["choix_station"]["rayon_km"]
+    st.subheader(f"Stations moins chères à proximité (moins de {rayon:.0f} km)")
+    proches = service.alternatives(station)
+    if proches.empty:
+        st.info("Aucune station proche ne fait gagner plus que le coût du détour : rester à cette station.")
+    else:
+        st.dataframe(
+            proches.drop(columns="station").rename(columns={
+                "ville": "Ville", "adresse": "Adresse", "distance_km": "Distance (km, vol d'oiseau)",
+                "gain_c_l": "Moins chère de (c€/L)", "gain_plein_euros": "Gain net par plein (€)",
+            }),
+            hide_index=True, width="stretch",
+        )
+    st.caption(
+        "Écarts de prix appris sur l'entraînement. Gain net = écart × 60 L − coût du détour aller-retour "
+        "(carburant et temps du chauffeur, hypothèses dans backend/config.py)."
+    )
+
     st.subheader("Prix du Gazole de la station (€/L)")
     st.line_chart(service.historique_prix(station).set_index("jour")["prix"])
     st.caption(
