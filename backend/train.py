@@ -3,6 +3,7 @@ import json
 import time
 
 import joblib
+import numpy as np
 from sklearn.model_selection import cross_val_score
 
 from backend.config import (
@@ -14,7 +15,7 @@ from backend.download import chemin_archive, telecharger_tout
 from backend.model import (
     CIBLE, VARIABLES_AVEC_BRENT, VARIABLES_BRENT_REALISTE, VARIABLES_SANS_BRENT,
     couts_moyens, couts_references, creer_pipeline, decouper_temporel, evaluer, evaluer_choix_station,
-    plis_temporels, profils_stations, seuil_optimal,
+    intervalle_gain, plis_temporels, profils_stations, regret, seuil_optimal,
 )
 
 MODELES = {
@@ -29,8 +30,14 @@ def fichiers_bruts_manquants() -> list:
     return [fichier for fichier in fichiers if not fichier.exists()]
 
 
+def en_euros_par_an(gain_c_l: dict) -> dict:
+    """Ajoute l'économie annuelle de la flotte fictive (€) à un gain moyen en c€/L."""
+    return {**gain_c_l, "economie_annuelle_euros": gain_c_l["moyenne"] / 100 * LITRES_PAR_AN}
+
+
 def entrainer_modele(variables, entrainement, test, seuil: float) -> tuple:
-    """AUC en validation croisée temporelle sur l'entraînement, ajustement, évaluation sur le test."""
+    """AUC en validation croisée temporelle sur l'entraînement, ajustement, évaluation sur le test.
+    Renvoie le pipeline, ses métriques et le regret de chaque ligne de test (c€/L)."""
     pipeline = creer_pipeline()
     auc_cv = cross_val_score(
         pipeline, entrainement[variables], entrainement[CIBLE], cv=plis_temporels(entrainement["jour"]), scoring="roc_auc",
@@ -38,12 +45,15 @@ def entrainer_modele(variables, entrainement, test, seuil: float) -> tuple:
     pipeline.fit(entrainement[variables], entrainement[CIBLE])
     resultat = evaluer(pipeline, test[variables], test[CIBLE], test["variation_future"], seuil)
     proba = pipeline.predict_proba(test[variables])[:, 1]
+    regrets = regret(test["variation_future"], proba > seuil)
+    regrets_plein = regret(test["variation_future"], np.ones(len(test), dtype=bool))
     resultat.update({
         "roc_auc_cv_moyenne": float(auc_cv.mean()),
         "roc_auc_cv_ecart_type": float(auc_cv.std()),
         "part_plein_modele": float((proba > seuil).mean()),
+        "gain_vs_plein": en_euros_par_an(intervalle_gain(test["jour"], regrets_plein, regrets)),
     })
-    return pipeline, resultat
+    return pipeline, resultat, regrets
 
 
 def main() -> dict:
@@ -57,9 +67,9 @@ def main() -> dict:
     hausse_moyenne, baisse_moyenne = couts_moyens(entrainement["variation_future"], entrainement[CIBLE])
     seuil = seuil_optimal(hausse_moyenne, baisse_moyenne)
 
-    modeles, pipelines = {}, {}
+    modeles, pipelines, regrets = {}, {}, {}
     for nom, variables in MODELES.items():
-        pipelines[nom], modeles[nom] = entrainer_modele(variables, entrainement, test, seuil)
+        pipelines[nom], modeles[nom], regrets[nom] = entrainer_modele(variables, entrainement, test, seuil)
 
     couts = couts_references(test["variation_future"])
     # Choix de la station : alternatives apprises sur l'entraînement, gain mesuré sur le test.
@@ -90,6 +100,10 @@ def main() -> dict:
         "economie_annuelle_euros": float(
             (couts["toujours_plein"] - modeles["avec_brent"]["cout_moyen_modele"]) / 100 * LITRES_PAR_AN
         ),
+        # Ce qu'apporte un cours du Brent de la veille (flux quotidien payant) au modèle sans Brent.
+        "valeur_brent_veille": en_euros_par_an(
+            intervalle_gain(test["jour"], regrets["sans_brent"], regrets["avec_brent"])
+        ),
     }
 
     FICHIER_MODELE.parent.mkdir(parents=True, exist_ok=True)
@@ -111,6 +125,11 @@ if __name__ == "__main__":
     c = resultats["couts"]
     print(f"Coût moyen c€/L. Toujours plein : {c['toujours_plein']:.3f}, "
           f"toujours attendre : {c['toujours_attendre']:.3f}, oracle : {c['oracle']:.3f}")
-    print(f"Économie annuelle (avec_brent vs toujours plein) : {resultats['economie_annuelle_euros']:.0f} €")
+    g = resultats["modeles"]["sans_brent"]["gain_vs_plein"]
+    v = resultats["valeur_brent_veille"]
+    print(f"Économie annuelle, modèle sans Brent : {g['economie_annuelle_euros']:.0f} € "
+          f"(gain {g['moyenne']:.2f} c€/L, IC 95 % {g['bas']:.2f} à {g['haut']:.2f})")
+    print(f"En plus avec le Brent de la veille : {v['economie_annuelle_euros']:.0f} € "
+          f"(gain {v['moyenne']:.2f} c€/L, IC 95 % {v['bas']:.2f} à {v['haut']:.2f})")
     print(f"Modèle sauvegardé : {FICHIER_MODELE}")
     print(f"Durée : {time.time() - debut:.0f} s")

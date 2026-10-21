@@ -4,7 +4,7 @@ Une idée par slide. **Le titre de chaque slide est la conclusion**, pas le suje
 
 | # | Titre de slide (= message) | Contenu | Temps |
 |---|---|---|---|
-| 1 | « Faire le plein tout de suite coûte 1,24 c€/L de plus que le meilleur jour : le modèle ramène ce regret à 0,66 » | Client, enjeu, chiffre clé | 1 min |
+| 1 | « Faire le plein tout de suite coûte 1,24 c€/L de plus que le meilleur jour : sans abonnement, le modèle ramène ce regret à 0,90 (≈ 420 € par an) » | Client, enjeu, chiffre clé, intervalle de confiance | 1 min |
 | 2 | « Plein aujourd'hui ou dans 3 jours : une erreur d'attente coûte 3,25 c€/L, une erreur de plein 1,16 » | Question business, coûts de chaque erreur, décision visée | 1 min |
 | 3 | « 475 stations du Nord et du Pas-de-Calais, 207 958 lignes, et un Brent qui arrive avec 8 jours de retard » | Data Quality Card en 4 points : trous de séries, saut du 1er janvier, retard du Brent, aucune fuite | 1 min 30 |
 | 4 | « Trois profils de stations, dont 67 stations chères à 7,76 c€/L de plus que la médiane » | Segmentation K-means : 3 profils (non supervisé) | 1 min 30 |
