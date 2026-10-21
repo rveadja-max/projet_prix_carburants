@@ -39,3 +39,8 @@ ECC-main/
 
 # Support de cours du formateur : gardé en local, non publié
 exemple_projet_a_suivre/
+
+# Outils locaux : configuration Claude, version Python de pyenv, instructions de l'assistant
+.claude/
+.python-version
+CLAUDE.md
