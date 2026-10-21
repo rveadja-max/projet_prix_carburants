@@ -185,3 +185,33 @@ def test_station_sur_la_tournee_sans_cout_de_detour():
     e = evaluer_choix_station(stations_voisines().iloc[:2], ecarts, pd.Series({"A": 1.0, "B": 0.0}), 2.0, 5,
                               avec_detour=False)
     assert e["gain_moyen_c_l"] == pytest.approx(0.5) and e["gain_moyen_plein_euros"] == pytest.approx(0.30)
+
+
+# --- Intervalle de confiance du gain : bootstrap par blocs de jours consécutifs ---
+
+def test_intervalle_gain_nul_si_strategies_identiques():
+    from backend.model import intervalle_gain
+
+    jours = pd.Series(pd.date_range("2026-05-01", periods=28).strftime("%Y-%m-%d"))
+    regrets = np.linspace(0, 2, 28)
+    assert intervalle_gain(jours, regrets, regrets) == pytest.approx({"moyenne": 0.0, "bas": 0.0, "haut": 0.0})
+
+
+def test_intervalle_gain_constant():
+    from backend.model import intervalle_gain
+
+    jours = pd.Series(pd.date_range("2026-05-01", periods=28).strftime("%Y-%m-%d"))
+    r = intervalle_gain(jours, np.full(28, 3.0), np.full(28, 2.0))
+    assert r == pytest.approx({"moyenne": 1.0, "bas": 1.0, "haut": 1.0})
+
+
+def test_intervalle_gain_encadre_la_moyenne_et_tire_des_semaines_entieres():
+    from backend.model import intervalle_gain
+
+    # Une seule semaine porte tout le gain : l'intervalle doit aller de 0 (semaine absente du tirage) à plus.
+    jours = pd.Series(np.repeat(pd.date_range("2026-05-04", periods=28).strftime("%Y-%m-%d"), 5))
+    reference = np.where(np.arange(140) < 35, 4.0, 1.0)
+    r = intervalle_gain(jours, reference, np.ones(140), n_tirages=500)
+    assert r["moyenne"] == pytest.approx(0.75)  # 35 lignes × 3 c€ / 140 lignes
+    assert r["bas"] == pytest.approx(0.0) and r["bas"] <= r["moyenne"] <= r["haut"]
+    assert r == intervalle_gain(jours, reference, np.ones(140), n_tirages=500)  # graine fixée

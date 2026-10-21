@@ -94,7 +94,7 @@ with onglet_modele:
     ]
     tableau = pd.DataFrame(strategies, columns=["Stratégie", "Coût moyen (c€/L)"])
     tableau["Coût moyen (c€/L)"] = tableau["Coût moyen (c€/L)"].round(3)
-    meilleure = strategies[4][0]
+    meilleure = strategies[2][0]  # le modèle utilisable aujourd'hui avec des données gratuites
     st.dataframe(
         tableau.style.apply(
             lambda ligne: ["font-weight: bold" if ligne["Stratégie"] == meilleure else ""] * len(ligne), axis=1
@@ -102,7 +102,23 @@ with onglet_modele:
         hide_index=True,
         width="stretch",
     )
-    st.metric("Économie annuelle estimée (flotte fictive)", f"{metriques['economie_annuelle_euros']:,.0f} €".replace(",", " "))
+
+    def euros(valeur: float) -> str:
+        return f"{valeur:,.0f} €".replace(",", " ")
+
+    gain = metriques["modeles"]["sans_brent"]["gain_vs_plein"]
+    brent = metriques["valeur_brent_veille"]
+    colonne_gain, colonne_brent = st.columns(2)
+    colonne_gain.metric("Économie annuelle, modèle sans Brent (flotte fictive)", euros(gain["economie_annuelle_euros"]))
+    colonne_gain.caption(
+        f"Intervalle de confiance à 95 % : {gain['bas']:.2f} à {gain['haut']:.2f} c€/L "
+        "(bootstrap par semaines de la période de test)."
+    )
+    colonne_brent.metric("En plus avec le Brent de la veille (flux payant)", euros(brent["economie_annuelle_euros"]))
+    colonne_brent.caption(
+        f"Intervalle à 95 % : {brent['bas']:.2f} à {brent['haut']:.2f} c€/L. "
+        "Un abonnement au cours quotidien ne vaut la peine que s'il coûte moins que ce gain."
+    )
     st.subheader("Importance par permutation, modèle avec Brent (baisse de ROC-AUC)")
     st.bar_chart(pd.Series(metriques["modeles"]["avec_brent"]["importance_permutation"]).head(8), width="stretch")
     st.subheader("Limites")

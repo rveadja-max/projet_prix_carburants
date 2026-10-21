@@ -38,3 +38,16 @@ def test_metriques_choix_station(modele_entraine):
         assert s["economie_annuelle_euros"] == pytest.approx(s["gain_moyen_plein_euros"] * m["pleins_par_an"])
     # Payer le détour ne peut que réduire le nombre de stations où l'on change.
     assert c["avec_detour"]["part_avec_alternative"] <= c["sur_tournee"]["part_avec_alternative"]
+
+
+def test_gain_vs_situation_actuelle_et_valeur_du_brent(modele_entraine):
+    m = json.loads(FICHIER_METRIQUES.read_text(encoding="utf-8"))
+    for nom, modele in m["modeles"].items():
+        g = modele["gain_vs_plein"]
+        assert g["bas"] <= g["moyenne"] <= g["haut"]
+        assert g["moyenne"] == pytest.approx(m["couts"]["toujours_plein"] - modele["cout_moyen_modele"])
+        assert g["economie_annuelle_euros"] == pytest.approx(g["moyenne"] / 100 * m["litres_par_an"])
+    v = m["valeur_brent_veille"]
+    attendu = m["modeles"]["sans_brent"]["cout_moyen_modele"] - m["modeles"]["avec_brent"]["cout_moyen_modele"]
+    assert v["moyenne"] == pytest.approx(attendu) and v["bas"] <= v["moyenne"] <= v["haut"]
+    assert v["economie_annuelle_euros"] == pytest.approx(attendu / 100 * m["litres_par_an"])
