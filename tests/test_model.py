@@ -4,8 +4,9 @@ import pandas as pd
 import pytest
 
 from backend.model import (
-    VARIABLES_PROFIL, VARIABLES_SANS_BRENT, cout_moyen, couts_moyens, couts_references,
-    creer_pipeline, decouper_temporel, evaluer, profils_stations, regret, segmenter, seuil_optimal,
+    VARIABLES_PROFIL, VARIABLES_PRIX, cout_moyen, couts_moyens, couts_references,
+    creer_pipeline, decouper_temporel, evaluer, profils_stations, regret, regret_validation_croisee, segmenter,
+    seuil_optimal, MODELES,
 )
 
 
@@ -69,7 +70,7 @@ def test_profils_stations():
 
 def test_evaluer_et_pipeline():
     generateur = np.random.default_rng(0)
-    X = pd.DataFrame(generateur.normal(size=(300, len(VARIABLES_SANS_BRENT))), columns=VARIABLES_SANS_BRENT)
+    X = pd.DataFrame(generateur.normal(size=(300, len(VARIABLES_PRIX))), columns=VARIABLES_PRIX)
     y = (X["var_prix_1j"] + 0.1 * generateur.normal(size=300) > 0).astype(int)
     delta = pd.Series(np.where(y == 1, 0.02, -0.01))
     pipeline = creer_pipeline().set_params(foret__min_samples_leaf=5)
@@ -226,3 +227,22 @@ def test_regret_par_mois():
         {"mois": "2026-05", "nb_lignes": 2, "plein": pytest.approx(1.0), "modele": pytest.approx(1.0)},
         {"mois": "2026-06", "nb_lignes": 3, "plein": pytest.approx(2.0), "modele": pytest.approx(1.0)},
     ]
+
+
+def test_les_deux_modeles_ne_different_que_par_le_taux_bce():
+    assert set(MODELES) == {"prix_seuls", "prix_et_taux"}
+    ajout = [v for v in MODELES["prix_et_taux"] if v not in MODELES["prix_seuls"]]
+    assert ajout == ["var_taux_1j", "var_taux_3j", "var_taux_7j"]
+
+
+def test_regret_validation_croisee_ne_voit_que_la_table_donnee():
+    # 40 jours × 20 stations : la cible suit le signe d'une variable, le regret CV doit être faible et >= 0.
+    generateur = np.random.default_rng(0)
+    jours = pd.date_range("2026-01-01", periods=40).strftime("%Y-%m-%d")
+    table = pd.DataFrame({"jour": np.repeat(jours, 20)})
+    table["signal"] = generateur.normal(size=len(table))
+    table["variation_future"] = np.where(table["signal"] > 0, 0.02, -0.01)
+    table["hausse"] = (table["variation_future"] > 0).astype(int)
+    regret_cv = regret_validation_croisee(table, ["signal"])
+    toujours_plein = float(regret(table["variation_future"], np.ones(len(table), dtype=bool)).mean())
+    assert 0 <= regret_cv < toujours_plein
