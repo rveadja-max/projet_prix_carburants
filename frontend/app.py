@@ -27,7 +27,7 @@ except FileNotFoundError:
     st.error("Modèle absent. Lancer d'abord : `python -m backend.train`")
     st.stop()
 
-onglet_conseil, onglet_segments, onglet_modele = st.tabs(["Conseil de plein", "Segments", "Le modèle"])
+onglet_conseil, onglet_segments, onglet_modele = st.tabs(["Décision", "Exploration", "Le modèle"])
 
 with onglet_conseil:
     libelles = dict(zip(table_stations["station"], table_stations["ville"] + " — " + table_stations["adresse"]))
