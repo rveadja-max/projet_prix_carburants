@@ -7,7 +7,7 @@ from backend.config import FICHIER_METRIQUES
 
 CLES_MODELE = {
     "roc_auc", "roc_auc_cv_moyenne", "roc_auc_cv_ecart_type", "cout_moyen_modele",
-    "cout_moyen_seuil_05", "importance_permutation", "part_plein_modele",
+    "cout_moyen_seuil_05", "importance_permutation", "part_plein_modele", "brier",
 }
 
 
@@ -63,3 +63,11 @@ def test_regret_par_mois_coherent_avec_les_couts(modele_entraine):
     assert total == pytest.approx(m["modeles"]["sans_brent"]["cout_moyen_modele"])
     plein = sum(ligne["toujours_plein"] * ligne["nb_lignes"] for ligne in mois) / m["nb_lignes_test"]
     assert plein == pytest.approx(m["couts"]["toujours_plein"])
+
+
+def test_score_de_brier_meilleur_que_le_taux_constant(modele_entraine):
+    m = json.loads(FICHIER_METRIQUES.read_text(encoding="utf-8"))
+    # Prédire partout le taux de hausse de l'entraînement donne Brier = p(1-p) environ ; le modèle doit faire mieux.
+    reference = m["taux_hausse"] * (1 - m["taux_hausse"])
+    for modele in m["modeles"].values():
+        assert 0 < modele["brier"] < reference + 0.01
