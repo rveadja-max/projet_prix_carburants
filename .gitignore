@@ -36,3 +36,6 @@ ECC-main/
 
 # Espace de travail des agents (journal, briefs, revues)
 .superpowers/
+
+# Support de cours du formateur : gardé en local, non publié
+exemple_projet_a_suivre/
