@@ -27,3 +27,22 @@ def test_conseiller_renvoie_une_decision(modele_entraine):
 
 def test_profils_segments(modele_entraine):
     assert len(service.profils_segments(3)) == 3
+
+
+def test_alternatives_refuse_une_station_inconnue(modele_entraine):
+    with pytest.raises(ValueError, match="Station inconnue"):
+        service.alternatives("0000000")
+
+
+def test_alternatives_proches_et_rentables(modele_entraine):
+    from backend.config import NB_ALTERNATIVES, RAYON_KM
+
+    stations = service.lister_stations()["station"]
+    resultats = [service.alternatives(s) for s in stations.iloc[:40]]
+    non_vides = [r for r in resultats if not r.empty]
+    assert non_vides, "aucune alternative sur 40 stations : vérifier les coordonnées"
+    for r in non_vides:
+        assert {"station", "ville", "adresse", "distance_km", "gain_c_l", "gain_plein_euros"} <= set(r.columns)
+        assert len(r) <= NB_ALTERNATIVES
+        assert (r["distance_km"] <= RAYON_KM).all() and (r["gain_plein_euros"] > 0).all()
+        assert r["gain_plein_euros"].is_monotonic_decreasing

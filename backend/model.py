@@ -8,7 +8,10 @@ from sklearn.metrics import roc_auc_score
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-from backend.config import DATE_FIN_ENTRAINEMENT, JOURS_MIN_PROFIL, PURGE_JOURS, SEED
+from backend.config import (
+    CONSO_L_100KM, COUT_HORAIRE_EUROS, DATE_FIN_ENTRAINEMENT, FACTEUR_ROUTE, JOURS_MIN_PROFIL, LITRES_PAR_PLEIN,
+    NB_ALTERNATIVES, PLEINS_PAR_AN, PURGE_JOURS, RAYON_KM, SEED, VITESSE_KMH,
+)
 
 VARIABLES_SANS_BRENT = [
     "prix", "var_prix_1j", "var_prix_3j", "var_prix_7j", "ecart_mediane_dep",
@@ -138,3 +141,80 @@ def segmenter(profils: pd.DataFrame, k: int = 3) -> pd.DataFrame:
     valeurs = StandardScaler().fit_transform(profils[VARIABLES_PROFIL])
     segments = KMeans(n_clusters=k, n_init=10, random_state=SEED).fit_predict(valeurs)
     return profils.assign(segment=segments)
+
+
+# --- Choix de la station : top-N des stations moins chères à proximité, net du coût du détour ---
+
+RAYON_TERRE_KM = 6371.0
+
+
+def distance_km(lat1, lon1, lat2, lon2):
+    """Distance à vol d'oiseau (formule de haversine), en km. Accepte des scalaires ou des tableaux."""
+    lat1, lon1, lat2, lon2 = (np.radians(np.asarray(v, dtype=float)) for v in (lat1, lon1, lat2, lon2))
+    a = np.sin((lat2 - lat1) / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin((lon2 - lon1) / 2) ** 2
+    return 2 * RAYON_TERRE_KM * np.arcsin(np.sqrt(a))
+
+
+def cout_detour_euros(distance: float, prix_litre: float) -> float:
+    """Coût d'un aller-retour vers une station à `distance` km à vol d'oiseau : carburant + temps du chauffeur."""
+    km_route = 2 * distance * FACTEUR_ROUTE
+    return km_route * (CONSO_L_100KM / 100 * prix_litre + COUT_HORAIRE_EUROS / VITESSE_KMH)
+
+
+def alternatives_station(
+    stations: pd.DataFrame, ecarts: pd.Series, station, prix_litre: float,
+    rayon_km: float = RAYON_KM, n: int = NB_ALTERNATIVES, avec_detour: bool = True,
+) -> pd.DataFrame:
+    """Les n stations à moins de `rayon_km` de `station` qui font gagner le plus par plein, net du détour.
+
+    `stations` : station, latitude, longitude. `ecarts` : écart moyen au prix médian du département
+    (c€/L) par station, appris sur l'entraînement. Seules les alternatives au gain net positif sont gardées.
+    `avec_detour=False` : plafond du levier, la station est sur la tournée et le détour ne coûte rien.
+    Colonnes : station, distance_km, gain_c_l, gain_plein_euros (triées par gain_plein_euros décroissant)."""
+    colonnes = ["station", "distance_km", "gain_c_l", "gain_plein_euros"]
+    positions = stations.dropna(subset=["latitude", "longitude"]).set_index("station")
+    if station not in positions.index or station not in ecarts.index:
+        return pd.DataFrame(columns=colonnes)
+    autres = positions.drop(index=station)
+    autres = autres[autres.index.isin(ecarts.index)]
+    origine = positions.loc[station]
+    candidats = pd.DataFrame({
+        "station": autres.index,
+        "distance_km": distance_km(origine["latitude"], origine["longitude"], autres["latitude"], autres["longitude"]),
+        "gain_c_l": (ecarts[station] - ecarts.reindex(autres.index)).to_numpy(),
+    })
+    detour = cout_detour_euros(candidats["distance_km"], prix_litre) if avec_detour else 0.0
+    candidats["gain_plein_euros"] = candidats["gain_c_l"] / 100 * LITRES_PAR_PLEIN - detour
+    retenus = candidats[(candidats["distance_km"] <= rayon_km) & (candidats["gain_plein_euros"] > 0)]
+    return retenus.sort_values("gain_plein_euros", ascending=False).head(n).reset_index(drop=True)[colonnes]
+
+
+def evaluer_choix_station(
+    stations: pd.DataFrame, ecarts_entrainement: pd.Series, ecarts_test: pd.Series,
+    prix_litre: float, rayon_km: float = RAYON_KM, avec_detour: bool = True,
+) -> dict:
+    """Gain réalisé sur le test si chaque station habituelle est remplacée par sa meilleure alternative,
+    choisie sur l'entraînement seulement. Une station sans alternative rentable garde son gain de 0."""
+    habituelles = ecarts_entrainement.index.intersection(ecarts_test.index)
+    gains_c_l, gains_plein, avec_alternative = [], [], []
+    for station in habituelles:
+        meilleure = alternatives_station(stations, ecarts_entrainement, station, prix_litre, rayon_km, 1, avec_detour)
+        meilleure = meilleure[meilleure["station"].isin(ecarts_test.index)]
+        avec_alternative.append(not meilleure.empty)
+        if meilleure.empty:
+            gains_c_l.append(0.0)
+            gains_plein.append(0.0)
+            continue
+        alternative, distance = meilleure["station"].iloc[0], meilleure["distance_km"].iloc[0]
+        gain = float(ecarts_test[station] - ecarts_test[alternative])
+        gains_c_l.append(gain)
+        detour = float(cout_detour_euros(distance, prix_litre)) if avec_detour else 0.0
+        gains_plein.append(gain / 100 * LITRES_PAR_PLEIN - detour)
+    gain_plein = float(np.mean(gains_plein)) if gains_plein else 0.0
+    return {
+        "nb_stations": int(len(habituelles)),
+        "part_avec_alternative": float(np.mean(avec_alternative)) if avec_alternative else 0.0,
+        "gain_moyen_c_l": float(np.mean(gains_c_l)) if gains_c_l else 0.0,
+        "gain_moyen_plein_euros": gain_plein,
+        "economie_annuelle_euros": gain_plein * PLEINS_PAR_AN,
+    }

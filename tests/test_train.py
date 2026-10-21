@@ -24,3 +24,17 @@ def test_metriques_coherentes(modele_entraine):
         assert 0 <= modele["part_plein_modele"] <= 1
     economie = (m["couts"]["toujours_plein"] - m["modeles"]["avec_brent"]["cout_moyen_modele"]) / 100 * m["litres_par_an"]
     assert m["economie_annuelle_euros"] == pytest.approx(economie)
+
+
+def test_metriques_choix_station(modele_entraine):
+    m = json.loads(FICHIER_METRIQUES.read_text(encoding="utf-8"))
+    c = m["choix_station"]
+    assert 1.2 <= c["prix_litre"] <= 3.0 and c["rayon_km"] > 0
+    for scenario in ("avec_detour", "sur_tournee"):
+        s = c[scenario]
+        assert {"nb_stations", "part_avec_alternative", "gain_moyen_c_l", "gain_moyen_plein_euros",
+                "economie_annuelle_euros"} <= set(s)
+        assert 0 <= s["part_avec_alternative"] <= 1
+        assert s["economie_annuelle_euros"] == pytest.approx(s["gain_moyen_plein_euros"] * m["pleins_par_an"])
+    # Payer le détour ne peut que réduire le nombre de stations où l'on change.
+    assert c["avec_detour"]["part_avec_alternative"] <= c["sur_tournee"]["part_avec_alternative"]

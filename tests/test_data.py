@@ -7,7 +7,7 @@ import pandas as pd
 import pytest
 
 from backend.data import (
-    charger_brut_dans_sqlite, enregistrer_table_analyse, executer_requete_analyse, lire_table_analyse,
+    charger_brut_dans_sqlite, convertir_coordonnee, lire_position, enregistrer_table_analyse, executer_requete_analyse, lire_table_analyse,
     lire_table_enregistree,
 )
 
@@ -40,6 +40,31 @@ def test_chargement_derive_departement_zone_et_dedoublonne(base_test):
     ligne = requete(base_test, "select departement, zone, ville from stations where station='5900003'")
     assert ligne == [("59", "A", "LILLE")]
     assert requete(base_test, "select count(*) from prix where station='5900002'")[0][0] == 10
+
+
+def test_chargement_garde_les_coordonnees_en_degres(base_test):
+    # Le XML donne les coordonnées en cent-millièmes de degré : 5000000 -> 50,0°.
+    ligne = requete(base_test, "select latitude, longitude from stations where station='5900001'")
+    assert ligne == [(pytest.approx(50.0), pytest.approx(3.0))]
+
+
+def test_convertir_coordonnee():
+    assert convertir_coordonnee("4620100") == pytest.approx(46.201)
+    assert convertir_coordonnee("-55300") == pytest.approx(-0.553)
+    assert convertir_coordonnee("") is None
+    assert convertir_coordonnee(None) is None
+    assert convertir_coordonnee("0") is None  # station sans position connue
+    assert convertir_coordonnee("3.892") == pytest.approx(3.892)  # déjà en degrés (station 59750006)
+
+
+def test_lire_position_corrige_les_inversions_vues_dans_les_archives():
+    assert lire_position("5062565.00168", "303513.857653") == pytest.approx((50.6256500168, 3.03513857653))
+    # Latitude et longitude inversées (stations 59000011 et 62360005), parfois déjà en degrés (59750006).
+    assert lire_position("302417.918393", "5061699.11034") == pytest.approx((50.6169911034, 3.02417918393))
+    assert lire_position("3.892", "50.282") == pytest.approx((50.282, 3.892))
+    assert lire_position("", "") == (None, None)
+    # Hors métropole, une latitude plus petite que la longitude est normale (La Réunion) : pas d'inversion.
+    assert lire_position("-2090000", "5550000") == pytest.approx((-20.9, 55.5))
 
 
 def test_chargement_renvoie_les_comptes(tmp_path_factory, base_test):

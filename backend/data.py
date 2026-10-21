@@ -28,12 +28,41 @@ drop table if exists prix;
 drop table if exists brent;
 drop table if exists taux_change;
 drop table if exists calendrier;
-create table stations (station TEXT PRIMARY KEY, cp TEXT, departement TEXT, zone TEXT, ville TEXT, adresse TEXT);
+create table stations (
+    station TEXT PRIMARY KEY, cp TEXT, departement TEXT, zone TEXT, ville TEXT, adresse TEXT,
+    latitude REAL, longitude REAL
+);
 create table prix (station TEXT, maj TEXT, valeur REAL);
 create table brent (jour TEXT, dollars_baril REAL);
 create table taux_change (jour TEXT, dollars_par_euro REAL);
 create table calendrier (jour TEXT);
 """
+
+
+def convertir_coordonnee(valeur: str | None) -> float | None:
+    """Coordonnée du XML en degrés. Le format courant est en cent-millièmes de degré (« 4620100 ») ;
+    quelques stations la donnent déjà en degrés (« 3.892 »). Absente ou nulle : None."""
+    if not valeur:
+        return None
+    brut = float(valeur)
+    if brut == 0:
+        return None
+    return brut if abs(brut) < 1000 else brut / 100_000
+
+
+def en_metropole(latitude: float, longitude: float) -> bool:
+    return 41 <= latitude <= 52 and -6 <= longitude <= 10
+
+
+def lire_position(latitude: str | None, longitude: str | None) -> tuple[float | None, float | None]:
+    """Position (latitude, longitude) en degrés. Corrige une inversion des deux champs, vue dans les
+    archives, quand seule la position inversée tombe en métropole."""
+    lat, lon = convertir_coordonnee(latitude), convertir_coordonnee(longitude)
+    if lat is None or lon is None:
+        return None, None
+    if not en_metropole(lat, lon) and en_metropole(lon, lat):
+        return lon, lat
+    return lat, lon
 
 
 def lire_archive(archive: Path, date_fin: str, con: sqlite3.Connection) -> int:
@@ -46,8 +75,11 @@ def lire_archive(archive: Path, date_fin: str, con: sqlite3.Connection) -> int:
             station = elem.get("id")
             cp = elem.get("cp") or ""
             con.execute(
-                "insert or replace into stations values (?, ?, ?, ?, ?, ?)",
-                (station, cp, cp[:2], elem.get("pop"), elem.findtext("ville"), elem.findtext("adresse")),
+                "insert or replace into stations values (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    station, cp, cp[:2], elem.get("pop"), elem.findtext("ville"), elem.findtext("adresse"),
+                    *lire_position(elem.get("latitude"), elem.get("longitude")),
+                ),
             )
             lignes = []
             for prix in elem.iter("prix"):
@@ -202,7 +234,7 @@ def lire_table_enregistree(base: Path = BASE) -> pd.DataFrame:
 
 
 def lire_stations(base: Path = BASE) -> pd.DataFrame:
-    """Lit la table SQLite `stations` : station, cp, departement, zone, ville, adresse."""
+    """Lit la table SQLite `stations` : station, cp, departement, zone, ville, adresse, latitude, longitude."""
     if not base.exists():
         raise FileNotFoundError(f"Base introuvable : {base}. {MESSAGE_RELANCE}")
     with closing(sqlite3.connect(base)) as con:
