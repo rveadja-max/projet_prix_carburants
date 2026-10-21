@@ -13,12 +13,14 @@ from backend.config import (
     NB_ALTERNATIVES, PLEINS_PAR_AN, PURGE_JOURS, RAYON_KM, SEED, VITESSE_KMH,
 )
 
-VARIABLES_SANS_BRENT = [
+# Deux modèles, pour mesurer ce qu'apporte le croisement avec la BCE : les variations du taux EUR/USD
+# sont prises aux mêmes horizons que celles des prix (1, 3 et 7 jours), sans réglage sur le test.
+VARIABLES_PRIX = [
     "prix", "var_prix_1j", "var_prix_3j", "var_prix_7j", "ecart_mediane_dep",
     "var_mediane_dep_7j", "jours_depuis_changement", "age_prix_jours", "jour_semaine",
 ]
-VARIABLES_AVEC_BRENT = VARIABLES_SANS_BRENT + ["var_brent_7j", "var_taux_7j"]
-VARIABLES_BRENT_REALISTE = VARIABLES_SANS_BRENT + ["var_brent_realiste_7j", "var_taux_7j"]
+VARIABLES_PRIX_TAUX = VARIABLES_PRIX + ["var_taux_1j", "var_taux_3j", "var_taux_7j"]
+MODELES = {"prix_seuls": VARIABLES_PRIX, "prix_et_taux": VARIABLES_PRIX_TAUX}
 CIBLE = "hausse"
 VARIABLES_PROFIL = ["prix_relatif", "changements_par_semaine", "volatilite"]
 TAILLE_ECHANTILLON_PERMUTATION = 20000
@@ -121,6 +123,18 @@ def evaluer(pipeline: Pipeline, X_test: pd.DataFrame, y_test, variation_future_t
                    key=lambda paire: -paire[1])
         ),
     }
+
+
+def regret_validation_croisee(table: pd.DataFrame, variables: list[str]) -> float:
+    """Regret moyen (c€/L) en validation croisée temporelle sur `table` (l'entraînement), avec dans chaque
+    pli le seuil issu des coûts de son propre entraînement. Sert à choisir le modèle sans voir le test."""
+    regrets = []
+    for apprentissage, validation in plis_temporels(table["jour"]):
+        a, v = table.iloc[apprentissage], table.iloc[validation]
+        seuil = seuil_optimal(*couts_moyens(a["variation_future"], a[CIBLE]))
+        modele = creer_pipeline().fit(a[variables], a[CIBLE])
+        regrets.append(cout_moyen(v["variation_future"], modele.predict_proba(v[variables])[:, 1], seuil))
+    return float(np.mean(regrets))
 
 
 def profils_stations(table: pd.DataFrame, jours_min: int = JOURS_MIN_PROFIL) -> pd.DataFrame:

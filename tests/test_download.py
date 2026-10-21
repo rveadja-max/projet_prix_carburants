@@ -1,4 +1,4 @@
-"""Tests du téléchargement des 4 sources (sans accès réseau)."""
+"""Tests du téléchargement des données brutes (sans accès réseau)."""
 import io
 import json
 import zipfile
@@ -82,17 +82,25 @@ def test_manifeste_garde_les_entrees_precedentes(tmp_path):
 
 
 def test_csv_valide_ecrit_avec_empreinte(tmp_path):
-    contenu = b"observation_date,DCOILBRENTEU\n2026-10-13,125.78\n"
-    cible = tmp_path / "brent.csv"
-    entree = download.telecharger_csv("http://x", cible, "observation_date",
+    contenu = b"KEY,FREQ,TIME_PERIOD,OBS_VALUE\nEXR.D.USD.EUR.SP00.A,D,2026-10-13,1.16\n"
+    cible = tmp_path / "eurusd.csv"
+    entree = download.telecharger_csv("http://x", cible, "KEY,",
                                       ouvrir_url=faux_ouvreur(contenu, []))
     assert cible.read_bytes() == contenu
     assert entree["sha256"] == download.empreinte_sha256(cible)
 
 
 def test_csv_avec_mauvais_entete_rejete(tmp_path):
-    cible = tmp_path / "brent.csv"
+    cible = tmp_path / "eurusd.csv"
     with pytest.raises(ValueError):
-        download.telecharger_csv("http://x", cible, "observation_date",
+        download.telecharger_csv("http://x", cible, "KEY,",
                                  ouvrir_url=faux_ouvreur(b"<html>erreur</html>", []))
     assert list(tmp_path.iterdir()) == []
+
+
+def test_flux_quotidien_garde_la_page_source(tmp_path):
+    contenu = "\ufeffCode postal;pop;adresse\n59000;R;1 rue\n".encode("utf-8")
+    cible = tmp_path / "flux_quotidien.csv"
+    entree = download.telecharger_csv("http://x", cible, "Code postal;", page_source="http://page",
+                                      ouvrir_url=faux_ouvreur(contenu, []))
+    assert entree["source_page"] == "http://page" and entree["url"] == "http://x"

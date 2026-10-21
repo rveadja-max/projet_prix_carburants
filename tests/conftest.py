@@ -57,12 +57,36 @@ def jours_ouvres(debut: date, fin: date) -> list[date]:
     return [jour for jour in jours if jour.weekday() < 5]
 
 
-def ecrire_brent(chemin: Path) -> None:
-    lignes = ["observation_date,DCOILBRENTEU"]
-    for jour in jours_ouvres(date(2025, 12, 1), date(2026, 2, 2)):  # 2026-02-02 est après date_fin
-        valeur = "." if jour == date(2026, 1, 12) else "100.0" if jour == date(2026, 1, 15) else "60.0"
-        lignes.append(f"{jour},{valeur}")
-    chemin.write_text("\n".join(lignes) + "\n", encoding="utf-8")
+ENTETE_FLUX = (
+    "Code postal;pop;adresse;ville;geom;Mise à jour des prix;prix_id;Prix;Carburant;Carburant en rupture;"
+    "Début rupture;Fin rupture;Automate 24-24 (oui/non);id;fermeture"
+)
+
+
+def ligne_flux(cp, zone, ville, geom, maj, prix, carburant, rupture, automate, station, fermeture="") -> str:
+    fermeture = '"' + fermeture.replace('"', '""') + '"' if fermeture else ""
+    return f"{cp};{zone};1 rue de l'Église;{ville};{geom};{maj};1;{prix};{carburant};{rupture};;;{automate};{station};{fermeture}"
+
+
+def ecrire_flux(chemin: Path) -> None:
+    """Mini flux quotidien (format réel : `;`, UTF-8 avec BOM, une ligne par carburant et par rupture)."""
+    lignes = [
+        ENTETE_FLUX,
+        # Même prix que l'archive le 31 à 06:00 : doublon à supprimer de l'historique.
+        ligne_flux("59000", "R", "LILLE", "50.0, 3.0", "2026-01-31T06:00:00+00:00", "1.67", "Gazole", "", "Oui", "5900001"),
+        ligne_flux("59000", "R", "LILLE", "50.0, 3.0", "2026-01-31T06:00:00+00:00", "1.80", "SP95", "", "Oui", "5900001"),
+        # Prix daté après la date de fin (ignoré) et rupture de gazole en cours (deux lignes pour une station).
+        ligne_flux("59100", "R", "ROUBAIX", "50.69, 3.18", "2026-02-05T06:00:00+00:00", "1.70", "Gazole", "Gazole", "Non", "5900002"),
+        ligne_flux("59100", "R", "ROUBAIX", "50.69, 3.18", "2026-02-05T06:00:00+00:00", "1.70", "Gazole", "SP95", "Non", "5900002"),
+        ligne_flux("59000", "A", "LILLE", "50.01, 3.01", "2026-01-03T06:00:00+00:00", "1.80", "Gazole", "", "Non", "5900003"),
+        ligne_flux("75001", "R", "PARIS", "48.86, 2.34", "2026-01-03T06:00:00+00:00", "1.90", "Gazole", "", "Non", "7500001"),
+        # Fermeture définitive depuis le 20 janvier.
+        ligne_flux("59000", "R", "LILLE", "50.02, 3.02", "", "", "", "", "Non", "5900004",
+                   '{"@type": "D", "@debut": "2026-01-20T00:00:00", "@fin": ""}'),
+        # Station absente des archives, sans position, au dernier prix très ancien (vu dans le flux réel).
+        ligne_flux("59000", "R", "LILLE", "", "2015-03-02T06:00:00+00:00", "1.50", "Gazole", "", "Non", "5900005"),
+    ]
+    chemin.write_text("\n".join(lignes) + "\n", encoding="utf-8-sig")
 
 
 def ecrire_taux(chemin: Path) -> None:
@@ -78,11 +102,11 @@ def base_test(tmp_path_factory) -> Path:
     archive = dossier / "PrixCarburants_annuel_2026.zip"
     with zipfile.ZipFile(archive, "w") as zf:
         zf.writestr("PrixCarburants_annuel_2026.xml", fabriquer_xml().encode("iso-8859-1"))
-    ecrire_brent(dossier / "brent.csv")
+    ecrire_flux(dossier / "flux_quotidien.csv")
     ecrire_taux(dossier / "eurusd.csv")
     base = dossier / "test.db"
     charger_brut_dans_sqlite(
-        [archive], dossier / "brent.csv", dossier / "eurusd.csv", base, date_fin=DATE_FIN_TEST
+        [archive], dossier / "flux_quotidien.csv", dossier / "eurusd.csv", base, date_fin=DATE_FIN_TEST
     )
     return base
 
