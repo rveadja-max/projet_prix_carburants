@@ -7,8 +7,8 @@ import pandas as pd
 import pytest
 
 from backend.data import (
-    charger_brut_dans_sqlite, convertir_coordonnee, lire_position, enregistrer_table_analyse, executer_requete_analyse, lire_table_analyse,
-    lire_table_enregistree,
+    calculer_variables, charger_brut_dans_sqlite, enregistrer_table_analyse, executer_requete_analyse, fermee_le,
+    heure_locale, lignes_du_jour, lire_flux, lire_table_analyse, lire_table_enregistree,
 )
 
 
@@ -18,21 +18,25 @@ def requete(base, sql):
 
 
 def test_chargement_compte_les_tables(base_test):
-    assert requete(base_test, "select count(*) from stations")[0][0] == 5
-    assert requete(base_test, "select count(*) from brent where dollars_baril is null")[0][0] == 0
-    assert requete(base_test, "select count(*) from brent where jour = '2026-01-12'")[0][0] == 0
-    assert requete(base_test, "select max(jour) from brent")[0][0] <= "2026-01-31"
+    assert requete(base_test, "select count(*) from stations")[0][0] == 6            # flux : 6 stations
+    assert requete(base_test, "select count(*) from stations_historique")[0][0] == 5  # archives
     assert requete(base_test, "select max(jour) from taux_change")[0][0] <= "2026-01-31"
-    assert requete(base_test, "select count(*) from calendrier")[0][0] == 31
+    # Calendrier du premier prix au jour du conseil (lendemain de la date de fin).
+    assert requete(base_test, "select min(jour), max(jour), count(*) from calendrier")[0] == (
+        "2026-01-01", "2026-02-01", 32)
 
 
 def test_chargement_ignore_prix_aberrants_et_dates_apres_fin(base_test):
     prix = requete(base_test, "select valeur, maj from prix where station='5900004'")
     assert len(prix) == 2
     assert all(0.8 <= v <= 3.5 and m <= "2026-01-31T23:59:59" for v, m in prix)
+    # Le prix du flux daté du 5 février (après la fin) n'entre ni dans l'historique ni dans le prix du jour.
+    assert requete(base_test, "select max(maj) from prix where station='5900002'")[0][0] < "2026-02"
+    assert requete(base_test, "select prix_jour from stations where station='5900002'") == [(None,)]
 
 
-def test_chargement_garde_seulement_le_gazole(base_test):
+def test_chargement_garde_seulement_le_gazole_et_dedoublonne_le_flux(base_test):
+    # 31 prix de l'archive ; le prix du flux du 31 à 06:00 est un doublon exact, le SP95 est ignoré.
     assert requete(base_test, "select count(*) from prix where station='5900001'")[0][0] == 31
 
 
@@ -42,40 +46,52 @@ def test_chargement_derive_departement_zone_et_dedoublonne(base_test):
     assert requete(base_test, "select count(*) from prix where station='5900002'")[0][0] == 10
 
 
-def test_chargement_garde_les_coordonnees_en_degres(base_test):
-    # Le XML donne les coordonnées en cent-millièmes de degré : 5000000 -> 50,0°.
-    ligne = requete(base_test, "select latitude, longitude from stations where station='5900001'")
-    assert ligne == [(pytest.approx(50.0), pytest.approx(3.0))]
+def test_referentiel_du_flux(base_test):
+    lignes = {
+        station: (lat, lon, prix, maj, fermee, rupture, automate)
+        for station, lat, lon, prix, maj, fermee, rupture, automate in requete(
+            base_test, "select station, latitude, longitude, prix_jour, maj_prix_jour, fermee, rupture, "
+                       "automate_24_24 from stations")
+    }
+    assert lignes["5900001"] == (pytest.approx(50.0), pytest.approx(3.0), pytest.approx(1.67),
+                                 "2026-01-31T06:00:00", 0, 0, 1)
+    assert lignes["5900002"][4:6] == (0, 1)        # rupture de gazole en cours
+    assert lignes["5900004"][4] == 1               # fermeture définitive depuis le 20 janvier
+    assert lignes["5900005"][:3] == (None, None, pytest.approx(1.50))  # sans position, prix de 2015 gardé
+    # Ce prix ancien n'entre pas dans l'historique : il ferait remonter le calendrier à 2015.
+    assert requete(base_test, "select count(*) from prix where station='5900005'")[0][0] == 0
 
 
-def test_convertir_coordonnee():
-    assert convertir_coordonnee("4620100") == pytest.approx(46.201)
-    assert convertir_coordonnee("-55300") == pytest.approx(-0.553)
-    assert convertir_coordonnee("") is None
-    assert convertir_coordonnee(None) is None
-    assert convertir_coordonnee("0") is None  # station sans position connue
-    assert convertir_coordonnee("3.892") == pytest.approx(3.892)  # déjà en degrés (station 59750006)
+def test_heure_locale_retire_le_suffixe_utc_trompeur():
+    assert heure_locale("2026-10-20T07:31:00+00:00") == "2026-10-20T07:31:00"
+    assert heure_locale("") is None and heure_locale(None) is None
 
 
-def test_lire_position_corrige_les_inversions_vues_dans_les_archives():
-    assert lire_position("5062565.00168", "303513.857653") == pytest.approx((50.6256500168, 3.03513857653))
-    # Latitude et longitude inversées (stations 59000011 et 62360005), parfois déjà en degrés (59750006).
-    assert lire_position("302417.918393", "5061699.11034") == pytest.approx((50.6169911034, 3.02417918393))
-    assert lire_position("3.892", "50.282") == pytest.approx((50.282, 3.892))
-    assert lire_position("", "") == (None, None)
-    # Hors métropole, une latitude plus petite que la longitude est normale (La Réunion) : pas d'inversion.
-    assert lire_position("-2090000", "5550000") == pytest.approx((-20.9, 55.5))
+def test_fermee_le():
+    temporaire = '{"@type": "T", "@debut": "2026-10-19T00:00:00", "@fin": "2026-10-24T00:00:00"}'
+    assert fermee_le(temporaire, "2026-10-21")
+    assert not fermee_le(temporaire, "2026-10-25") and not fermee_le(temporaire, "2026-10-18")
+    assert fermee_le('[{"@type": "D", "@debut": "2009-02-01T00:00:00", "@fin": ""}]', "2026-10-21")
+    assert not fermee_le("", "2026-10-21") and not fermee_le(None, "2026-10-21")
+
+
+def test_jour_du_conseil_lendemain_du_dernier_prix(base_test):
+    _, jour = lire_flux(base_test.parent / "flux_quotidien.csv")
+    assert jour == "2026-02-06"  # dernier prix publié : 2026-02-05
+    _, jour = lire_flux(base_test.parent / "flux_quotidien.csv", date_fin="2026-01-31")
+    assert jour == "2026-02-01"
 
 
 def test_chargement_renvoie_les_comptes(tmp_path_factory, base_test):
     # La fixture a déjà chargé ; on recharge dans une autre base à partir des mêmes fichiers.
     dossier = base_test.parent
     comptes = charger_brut_dans_sqlite(
-        [dossier / "PrixCarburants_annuel_2026.zip"], dossier / "brent.csv", dossier / "eurusd.csv",
+        [dossier / "PrixCarburants_annuel_2026.zip"], dossier / "flux_quotidien.csv", dossier / "eurusd.csv",
         tmp_path_factory.mktemp("rec") / "b.db", date_fin="2026-01-31",
     )
-    assert comptes["stations"] == 5
+    assert comptes["stations"] == 6 and comptes["stations_historique"] == 5
     assert comptes["prix_ignores"] == 2
+    assert comptes["jour_conseil"] == "2026-02-01"
 
 
 def test_fichier_absent_leve_une_erreur(tmp_path):
@@ -84,8 +100,8 @@ def test_fichier_absent_leve_une_erreur(tmp_path):
 
 
 # --- Table d'analyse -------------------------------------------------------------------------
-# Rappels sur le mini-jeu : 2026-01-01 est un jeudi. Brent et taux cotés les jours ouvrés seulement,
-# Brent à 60 sauf 100 le jeudi 2026-01-15 et "." le lundi 2026-01-12 ; taux toujours à 1,10.
+# Rappels sur le mini-jeu : 2026-01-01 est un jeudi. Taux coté les jours ouvrés seulement, toujours à 1,10.
+# Calendrier jusqu'au 2026-02-01, jour du conseil.
 # Périmètre (59/62, zone R) : 5900001, 5900002, 5900004 (5900003 est en zone A, 7500001 à Paris).
 
 
@@ -112,16 +128,6 @@ def test_prix_dans_les_bornes_et_cible_binaire(table):
     assert set(table["hausse"]) <= {0, 1}
 
 
-def test_brent_sans_fuite(table):
-    # pic à 100 le 2026-01-15 : invisible le 15, visible le 16 (retard 1 jour) ;
-    # invisible jusqu'au 22, visible le 23 (retard 8 jours)
-    ligne = table[table.station == "5900001"].set_index("jour")
-    assert ligne.loc["2026-01-15", "brent_eur"] == pytest.approx(60 / 1.10)
-    assert ligne.loc["2026-01-16", "brent_eur"] == pytest.approx(100 / 1.10)
-    assert ligne.loc["2026-01-22", "brent_eur_realiste"] == pytest.approx(60 / 1.10)
-    assert ligne.loc["2026-01-23", "brent_eur_realiste"] == pytest.approx(100 / 1.10)
-
-
 def copie_modifiee(base_test, dossier, modification: str):
     """Copie le mini-jeu dans `dossier` et y applique une requête de modification."""
     base = dossier / "copie.db"
@@ -132,18 +138,17 @@ def copie_modifiee(base_test, dossier, modification: str):
     return base
 
 
-def test_brent_reporte_le_week_end(base_test, requete_seule, tmp_path):
-    # Copie où le Brent du vendredi 2026-01-09 passe à 70 (60 ailleurs, 100 le 15).
-    base = copie_modifiee(base_test, tmp_path, "update brent set dollars_baril = 70 where jour = '2026-01-09'")
+def test_taux_reporte_le_week_end(base_test, requete_seule, tmp_path):
+    # Copie où le taux du vendredi 2026-01-09 passe à 1,20 (1,10 ailleurs).
+    base = copie_modifiee(base_test, tmp_path, "update taux_change set dollars_par_euro = 1.20 where jour = '2026-01-09'")
     ligne = executer_requete_analyse(base)
     ligne = ligne[ligne.station == "5900001"].set_index("jour")
-    assert ligne.loc["2026-01-09", "brent_eur"] == pytest.approx(60 / 1.10)  # veille = jeudi 8 : 60
-    assert ligne.loc["2026-01-10", "brent_eur"] == pytest.approx(70 / 1.10)  # veille = vendredi 9
-    assert ligne.loc["2026-01-12", "brent_eur"] == pytest.approx(70 / 1.10)  # veille = dimanche 11 -> vendredi 9
-    assert ligne.loc["2026-01-13", "brent_eur"] == pytest.approx(70 / 1.10)  # veille = lundi 12 "." -> vendredi 9
-    assert ligne.loc["2026-01-14", "brent_eur"] == pytest.approx(60 / 1.10)  # veille = mardi 13 : 60
-    # Les cotations commencent le 2025-12-01 : aucun jour du calendrier n'est sans Brent ni taux.
-    assert requete_seule[["brent_eur", "brent_eur_realiste", "taux"]].notna().all().all()
+    assert ligne.loc["2026-01-09", "taux"] == pytest.approx(1.10)  # veille = jeudi 8
+    assert ligne.loc["2026-01-10", "taux"] == pytest.approx(1.20)  # veille = vendredi 9
+    assert ligne.loc["2026-01-12", "taux"] == pytest.approx(1.20)  # veille = dimanche 11 -> vendredi 9
+    assert ligne.loc["2026-01-13", "taux"] == pytest.approx(1.10)  # veille = lundi 12
+    # Les cotations commencent le 2025-12-01 : aucun jour du calendrier n'est sans taux.
+    assert requete_seule["taux"].notna().all()
 
 
 def test_taux_sans_fuite(base_test, tmp_path):
@@ -155,7 +160,6 @@ def test_taux_sans_fuite(base_test, tmp_path):
     ligne = ligne[ligne.station == "5900001"].set_index("jour")
     assert ligne.loc["2026-01-20", "taux"] == pytest.approx(1.10)
     assert ligne.loc["2026-01-21", "taux"] == pytest.approx(1.25)
-    assert ligne.loc["2026-01-21", "brent_eur"] == pytest.approx(60 / 1.25)
     assert ligne.loc["2026-01-22", "taux"] == pytest.approx(1.10)  # veille = 21 : 1,10
     # var_taux_7j = taux(J) - taux(J-7), sur la table complète.
     table = lire_table_analyse(base)
@@ -163,6 +167,8 @@ def test_taux_sans_fuite(base_test, tmp_path):
     assert ligne.loc["2026-01-21", "var_taux_7j"] == pytest.approx(1.25 - 1.10)  # taux du 21 - taux du 14
     assert ligne.loc["2026-01-28", "var_taux_7j"] == pytest.approx(1.10 - 1.25)  # taux du 28 - taux du 21
     assert ligne.loc["2026-01-14", "var_taux_7j"] == pytest.approx(0.0)  # avant : 1,10 - 1,10 (le 21 n'entre pas)
+    assert ligne.loc["2026-01-21", "var_taux_1j"] == pytest.approx(1.25 - 1.10)
+    assert ligne.loc["2026-01-24", "var_taux_3j"] == pytest.approx(1.10 - 1.25)  # taux du 24 (du 23) - taux du 21
 
 
 def test_prix_du_jour_ignore_les_mises_a_jour_apres_midi(table):
@@ -187,8 +193,8 @@ def test_station_muette_plus_de_7_jours_exclue(table, requete_seule):
 
 
 def test_jointure_marche_ne_duplique_pas(requete_seule):
-    # nombre de lignes du SQL seul == nombre de couples (calendrier × stations du périmètre) = 31 × 3
-    assert len(requete_seule) == 31 * 3
+    # nombre de lignes du SQL seul == nombre de couples (calendrier × stations du périmètre) = 32 × 3
+    assert len(requete_seule) == 32 * 3
     assert not requete_seule.duplicated(["station", "jour"]).any()
 
 
@@ -204,16 +210,11 @@ def test_variables_calculees_sur_le_passe(table):
     assert ligne.loc["2026-01-12", "hausse"] == 0                              # 1,63 le 12 et le 15
     assert ligne.loc["2026-01-12", "age_prix_jours"] == 0
     assert ligne.loc["2026-01-12", "jour_semaine"] == 0                        # lundi
-    assert ligne.loc["2026-01-16", "var_brent_7j"] == pytest.approx(40 / 1.10)
     assert ligne.loc["2026-01-16", "var_taux_7j"] == pytest.approx(0.0)
     # var_prix_3j = prix(J) - prix(J-3) : le 12, 1,63 - 1,62 (le 9) ; le 15, 1,63 - 1,63 (le 12).
     # (une version tournée vers l'avant donnerait 0 le 12 et 0,01 le 15)
     assert ligne.loc["2026-01-12", "var_prix_3j"] == pytest.approx(0.01)
     assert ligne.loc["2026-01-15", "var_prix_3j"] == pytest.approx(0.0)
-    # Brent réaliste (cotation <= J-8) : le 23 voit le 100 du 15, le 16 voit le 8 -> 60.
-    # var_brent_realiste_7j le 23 = 100/1,10 - 60/1,10 ; le 16 = 60/1,10 (le 8) - 60/1,10 (le 1er) = 0.
-    assert ligne.loc["2026-01-23", "var_brent_realiste_7j"] == pytest.approx(40 / 1.10)
-    assert ligne.loc["2026-01-16", "var_brent_realiste_7j"] == pytest.approx(0.0)
     # 5900002 : prix reporté du 2026-01-12 (06:00) au 2026-01-13, donc âge 1 jour.
     assert table.set_index(["station", "jour"]).loc[("5900002", "2026-01-13"), "age_prix_jours"] == 1
 
@@ -256,3 +257,17 @@ def test_table_enregistree_aller_retour(table, tmp_path):
 def test_base_absente_leve_une_erreur(tmp_path):
     with pytest.raises(FileNotFoundError, match="python -m backend.train"):
         lire_table_analyse(base=tmp_path / "absente.db")
+
+
+def test_metriques_figees_a_la_date_de_fin(base_test):
+    # Seuls les jours dont le prix à J + 3 est connu au plus tard à la date de fin entrent dans la table.
+    assert lire_table_analyse(base_test, date_fin="2026-01-20")["jour"].max() == "2026-01-17"
+
+
+def test_lignes_du_jour_sans_cible(requete_seule):
+    # Jour du conseil (2026-02-01) : 5900001 a un prix (du 31) et toutes ses variables ; 5900002, muette
+    # depuis le 18, et 5900004, depuis le 6, n'ont pas de conseil.
+    jour = lignes_du_jour(calculer_variables(requete_seule), "2026-02-01")
+    assert list(jour["station"]) == ["5900001"]
+    assert "variation_future" not in jour and "hausse" not in jour
+    assert jour["prix"].iloc[0] == pytest.approx(1.67)

@@ -1,11 +1,13 @@
-"""Téléchargement des 4 sources de données : 2 archives XML, Brent (FRED) et EUR/USD (BCE).
+"""Téléchargement des données brutes : flux quotidien (data.gouv.fr), taux EUR/USD (BCE) et
+archives annuelles XML (historique des prix).
 
 Usage : python -m backend.download [--annees 2025 2026] [--forcer]
 
 Les archives vont dans data/raw/historique_xml/, les CSV dans data/raw/, et ne sont jamais
 modifiés ensuite. Chaque téléchargement est noté dans data/raw/manifest.json (URL, date,
-taille, SHA-256). Un fichier déjà présent n'est pas retéléchargé, sauf avec --forcer
-(utile pour rafraîchir l'année en cours, mise à jour chaque jour par la source).
+taille, SHA-256). Un fichier déjà présent n'est pas retéléchargé, sauf avec --forcer :
+à faire chaque matin pour le conseil du jour (flux, taux et archive de l'année en cours changent
+chaque jour à la source).
 """
 import argparse
 import hashlib
@@ -20,12 +22,13 @@ from backend.config import (
     ANNEES,
     DELAI_TELECHARGEMENT_S,
     DOSSIER_HISTORIQUE,
-    FICHIER_BRENT,
+    FICHIER_FLUX,
     FICHIER_MANIFESTE,
     FICHIER_TAUX,
     URL_ARCHIVE_ANNUELLE,
-    URL_BRENT,
-    URL_PAGE_SOURCE,
+    URL_FLUX,
+    URL_PAGE_ARCHIVES,
+    URL_PAGE_FLUX,
     URL_TAUX,
 )
 
@@ -47,7 +50,7 @@ def empreinte_sha256(chemin: Path) -> str:
 
 
 def ouvrir_distant(url: str, delai: int):
-    # User-Agent par défaut de urllib : FRED laisse sans réponse les User-Agent personnalisés.
+    # urlopen suit la redirection de data.gouv.fr vers l'export de data.economie.gouv.fr.
     return urlopen(url, timeout=delai)
 
 
@@ -87,11 +90,11 @@ def telecharger_archive(annee: int, dossier: Path = DOSSIER_HISTORIQUE, forcer: 
         raise
 
     partiel.replace(cible)
-    return _entree_manifeste(cible, url, URL_PAGE_SOURCE, year=annee)
+    return _entree_manifeste(cible, url, URL_PAGE_ARCHIVES, year=annee)
 
 
 def telecharger_csv(url: str, cible: Path, entete_attendue: str, forcer: bool = False,
-                    ouvrir_url=ouvrir_distant) -> dict | None:
+                    ouvrir_url=ouvrir_distant, page_source: str | None = None) -> dict | None:
     """Télécharge un CSV. Renvoie l'entrée du manifeste, ou None si déjà présent.
 
     Le fichier est rejeté (ValueError) si sa première ligne ne commence pas par entete_attendue.
@@ -112,7 +115,7 @@ def telecharger_csv(url: str, cible: Path, entete_attendue: str, forcer: bool = 
         raise
 
     partiel.replace(cible)
-    return _entree_manifeste(cible, url, url)
+    return _entree_manifeste(cible, url, page_source or url)
 
 
 def mettre_a_jour_manifeste(entrees: list[dict], manifeste: Path = FICHIER_MANIFESTE) -> None:
@@ -128,7 +131,7 @@ def mettre_a_jour_manifeste(entrees: list[dict], manifeste: Path = FICHIER_MANIF
 
 
 def telecharger_tout(forcer: bool = False, annees=ANNEES) -> list[dict]:
-    """Télécharge archives, Brent et taux. Renvoie les nouvelles entrées et met à jour le manifeste."""
+    """Télécharge archives, flux et taux. Renvoie les nouvelles entrées et met à jour le manifeste."""
     entrees = []
     for annee in annees:
         entree = telecharger_archive(annee, forcer=forcer)
@@ -137,9 +140,9 @@ def telecharger_tout(forcer: bool = False, annees=ANNEES) -> list[dict]:
             continue
         print(f"{annee} : {entree['size_bytes']:,} octets, sha256 {entree['sha256'][:12]}…")
         entrees.append(entree)
-    for url, cible, entete in ((URL_BRENT, FICHIER_BRENT, "observation_date"),
-                               (URL_TAUX, FICHIER_TAUX, "KEY")):
-        entree = telecharger_csv(url, cible, entete, forcer=forcer)
+    for url, cible, entete, page in ((URL_FLUX, FICHIER_FLUX, "Code postal;", URL_PAGE_FLUX),
+                                     (URL_TAUX, FICHIER_TAUX, "KEY,", URL_TAUX)):
+        entree = telecharger_csv(url, cible, entete, forcer=forcer, page_source=page)
         if entree is None:
             print(f"{cible.name} : déjà présent, ignoré ({cible})")
             continue
