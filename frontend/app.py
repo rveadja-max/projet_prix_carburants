@@ -119,6 +119,14 @@ with onglet_modele:
         f"Intervalle à 95 % : {brent['bas']:.2f} à {brent['haut']:.2f} c€/L. "
         "Un abonnement au cours quotidien ne vaut la peine que s'il coûte moins que ce gain."
     )
+    st.subheader("Regret moyen par mois (c€/L, jeu de test)")
+    mois = pd.DataFrame(metriques["regret_par_mois"]).rename(columns={
+        "mois": "Mois", "nb_lignes": "Lignes", "toujours_plein": "Toujours plein", "sans_brent": "Sans Brent",
+        "avec_brent": "Brent de la veille", "brent_realiste": "Brent à 8 jours",
+    }).round(2)
+    st.dataframe(mois, hide_index=True, width="stretch")
+    st.caption("Le gain dépend de la phase du marché : un mois où le modèle dépasse « toujours plein » est un mois perdu.")
+
     st.subheader("Importance par permutation, modèle avec Brent (baisse de ROC-AUC)")
     st.bar_chart(pd.Series(metriques["modeles"]["avec_brent"]["importance_permutation"]).head(8), width="stretch")
     st.subheader("Limites")

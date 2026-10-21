@@ -24,6 +24,19 @@ Regret d'une décision = prix payé − min(prix aujourd'hui, prix dans 3 jours)
 
 L'intervalle de confiance vient d'un bootstrap par semaines de la période de test (24 semaines) : les stations d'un même jour, et les jours proches, bougent ensemble. Il est large : le gain est positif, mais sa taille est incertaine.
 
+### Le gain dépend de la phase du marché (regret moyen par mois, c€/L)
+
+| Mois | Lignes | Toujours plein | Sans Brent | Brent de la veille | Brent à 8 jours |
+|---|---|---|---|---|---|
+| 2026-05 | 9 010 | 2,93 | 2,03 | 1,10 | 1,88 |
+| 2026-06 | 10 154 | 2,00 | 1,08 | 0,90 | 1,63 |
+| 2026-07 | 11 217 | 0,16 | 0,21 | 0,36 | 0,18 |
+| 2026-08 | 10 127 | 1,21 | 1,17 | 0,69 | 0,93 |
+| 2026-09 | 10 019 | 0,46 | 0,44 | 0,25 | 0,43 |
+| 2026-10 (jusqu'au 16) | 4 735 | 0,70 | 0,42 | 0,79 | 0,49 |
+
+Presque tout le gain du modèle sans Brent vient de mai et juin, quand les prix redescendent après le pic du printemps. En juillet, quand les prix montent, il fait pire que « toujours faire le plein ». Le modèle avec le Brent de la veille fait pire en juillet et en octobre. Il faut donc suivre le regret chaque mois en usage réel.
+
 - ROC-AUC de 0,70 sur le test, et de 0,69 ± 0,01 en validation croisée (modèle avec Brent de la veille).
 - La variable la plus utile est la variation du Brent sur 7 jours (importance par permutation).
 - La segmentation K-means (3 segments) isole 67 stations chères, à 7,76 c€/L au-dessus de la médiane de leur département en moyenne.
@@ -48,7 +61,7 @@ Dans un environnement virtuel (`python -m venv .venv`, puis `source .venv/bin/ac
 ```bash
 pip install -r requirements.txt
 python -m backend.train                 # téléchargement, SQLite + table d'analyse SQL + entraînement
-python -m pytest                        # 63 tests
+python -m pytest                        # 66 tests
 python -m streamlit run frontend/app.py # démonstrateur
 ```
 
@@ -81,6 +94,7 @@ models/                  modèle et métriques produits par l'entraînement (ign
 - Avec le retard réel de 8 jours, le modèle fait pire que sans Brent : regret de 0,93 c€/L contre 0,90, et ROC-AUC de 0,67 contre 0,68. Le gain annoncé ne vaut que si le Brent de la veille est disponible.
 - Le gain a un plafond : 1,24 c€/L en connaissant l'avenir, environ 1 550 € par an pour la flotte fictive. Le modèle en capte 0,58 c€/L.
 - Le modèle conseille de faire le plein dans 62 % des cas. Il ne dit « attendre » que dans une minorité de situations.
+- Le gain se concentre sur mai et juin 2026 (baisse après le pic). Le modèle sans Brent fait pire que « toujours faire le plein » en juillet, et le modèle avec Brent en juillet et en octobre (tableau par mois ci-dessus).
 - Une seule période de test (2026-05-04 → 2026-10-16), pendant une crise des prix (gazole et Brent en forte hausse en 2026). Les résultats ne sont pas garantis hors de ce contexte, et la validation croisée varie d'un pli à l'autre (écart-type de 0,01 à 0,06 selon le modèle).
 - Le 1er janvier 2026, la médiane nationale saute de 1,554 à 1,599 €/L en deux jours. La cause n'est pas vérifiée (une évolution de fiscalité est probable, non confirmée).
 - Les volumes de la flotte (40 véhicules, 60 L, 1 plein par semaine) sont fictifs. Les euros par an en dépendent directement.

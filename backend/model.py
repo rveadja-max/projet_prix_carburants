@@ -237,3 +237,15 @@ def intervalle_gain(
     gains = sommes[tirages].sum(axis=1) / comptes[tirages].sum(axis=1)
     bas, haut = np.percentile(gains, [2.5, 97.5])
     return {"moyenne": float(ecart.mean()), "bas": float(bas), "haut": float(haut)}
+
+
+def regret_par_mois(jours, regrets: dict) -> list[dict]:
+    """Regret moyen (c€/L) de chaque stratégie, mois par mois. `regrets` : {nom: regret de chaque ligne}."""
+    table = pd.DataFrame({nom: np.asarray(valeurs, dtype=float) for nom, valeurs in regrets.items()})
+    table["mois"] = pd.Series(np.asarray(jours)).str[:7]
+    moyennes = table.groupby("mois").mean()
+    effectifs = table.groupby("mois").size()
+    return [
+        {"mois": mois, "nb_lignes": int(effectifs[mois]), **{nom: float(moyennes.loc[mois, nom]) for nom in regrets}}
+        for mois in moyennes.index
+    ]
