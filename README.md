@@ -1,73 +1,94 @@
-# Prix des carburants — Data product
+# SEP Conseil et Livraisons Exemple : aide au plein de la flotte
 
-## Finalité
-Construire un outil d'aide à l'exploration des prix des carburants en France : profils de stations, observations atypiques et évolution temporelle, à partir du jeu de données public indiqué dans le cadrage.
+> Projet de formation (data mining). Datasets : [prix des carburants en France](https://www.prix-carburants.gouv.fr/rubrique/opendata/) (Licence Ouverte), cours du Brent de l'EIA via [FRED](https://fred.stlouisfed.org/series/DCOILBRENTEU) (domaine public) et taux euro/dollar de la [BCE](https://data.ecb.europa.eu/). Équipe : [à compléter par l'équipe].
 
-**Question métier provisoire :** comment aider un utilisateur à repérer les stations dont les prix méritent une attention particulière, à comprendre les écarts et à étudier l'évolution des prix malgré les trous de séries ?
+## Question business
 
-## Principes
-- SQL pour extraire, joindre et construire la table d'analyse.
-- Python pour la préparation, les caractéristiques, les modèles et l'évaluation.
-- Backend indépendant du frontend.
-- Streamlit pour la démonstration.
-- Toute anomalie est un signal à examiner, pas une preuve d'erreur ou de fraude.
-- Résultats et limites mesurés sur les données réellement téléchargées.
+La PME Livraisons Exemple, basée dans le Nord, fait le plein de ses 40 utilitaires diesel une fois par semaine dans les stations de ses tournées (Nord et Pas-de-Calais). Le gestionnaire de flotte peut avancer ou décaler un plein de quelques jours. **Pour une station donnée, faut-il faire le plein aujourd'hui ou attendre 3 jours, et combien la flotte économise-t-elle en suivant le modèle ?**
 
-## Démarrage sous Ubuntu 24.04 / WSL2
+Hypothèses fictives : 40 véhicules, 60 L par plein, 1 plein par semaine, soit 124 800 L par an (réglées dans `backend/config.py`).
 
-Ouvrir ce dossier depuis Ubuntu dans VS Code. Dans le terminal WSL :
+## Résultats (jeu de test : 55 262 lignes station-jour, du 2026-05-04 au 2026-10-16)
 
-```bash
-python3 --version
-git --version
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-```
+Regret d'une décision = prix payé − min(prix aujourd'hui, prix dans 3 jours), en c€/L.
 
-Version de Python du projet : 3.14 (voir `.python-version`).
+| Stratégie | Regret moyen (c€/L) |
+|---|---|
+| Toujours faire le plein tout de suite (situation actuelle) | 1,24 |
+| Toujours attendre 3 jours | 1,60 |
+| Modèle sans Brent, seuil issu des coûts | 0,90 |
+| Modèle avec Brent de la veille, seuil 0,5 | 0,86 |
+| **Modèle avec Brent de la veille, seuil issu des coûts (0,26)** | **0,66** |
+| Modèle avec Brent à 8 jours de retard, seuil issu des coûts | 0,93 |
+| Plafond : connaître l'avenir | 0,00 |
 
-### Installer les dépendances
+- ROC-AUC de 0,70 sur le test, et de 0,69 ± 0,01 en validation croisée (modèle avec Brent de la veille).
+- La variable la plus utile est la variation du Brent sur 7 jours (importance par permutation).
+- La segmentation K-means (3 segments) isole 67 stations chères, à 7,76 c€/L au-dessus de la médiane de leur département en moyenne.
 
-Avec le `.venv` activé :
+### Choisir la station : top-3 des stations moins chères à moins de 5 km
 
-```bash
-python -m pip install -r requirements.txt
-python -m pip check
-```
+Pour chaque station habituelle, le modèle propose jusqu'à 3 stations à moins de 5 km (vol d'oiseau) moins chères en moyenne sur l'entraînement. Une station n'est proposée que si le gain par plein (écart × 60 L) dépasse le coût du détour aller-retour : carburant et temps du chauffeur (hypothèses fictives dans `backend/config.py` : route = 1,3 × vol d'oiseau, 9 L/100 km, 30 €/h, 30 km/h). Gain mesuré sur la période de test, sur 402 stations :
 
-`requirements.txt` fixe les versions de pandas, scikit-learn, statsmodels, aeon, Streamlit et pytest. Ces versions ont été vérifiées ensemble sous Python 3.14. `pip check` doit afficher « No broken requirements found. ». Toute nouvelle dépendance doit être justifiée dans `requirements.txt` puis validée par l'équipe.
+| Scénario | Stations où l'on change | Gain moyen (c€/L) | Gain net par plein | Économie annuelle (flotte fictive) |
+|---|---|---|---|---|
+| La station moins chère impose un détour | 14 % | 0,73 | 0,03 € | ≈ 66 € |
+| Plafond : la station moins chère est sur la tournée | 72 % | 2,17 | 1,30 € | ≈ 2 710 € |
 
-### Tests et démo (à venir)
+Le temps du chauffeur mange presque tout le gain d'un détour. Le levier ne vaut que pour des stations déjà sur la tournée : c'est au gestionnaire de le vérifier, car les tournées ne sont pas dans les données.
 
-pytest et Streamlit sont installés. Ces commandes ne fonctionneront qu'une fois les tests écrits et `frontend/app.py` créé :
+Le meilleur écart avec la situation actuelle est de 0,58 c€/L, soit environ 730 € par an pour la flotte fictive (124 800 L). Le plafond (connaître l'avenir) vaut 1,24 c€/L, soit environ 1 550 € par an : l'enjeu est modeste.
 
-```bash
-python -m pytest
-python -m streamlit run frontend/app.py
-```
+## Lancer le projet
 
-Les commandes d'import et d'entraînement ne doivent être ajoutées ici qu'après leur implémentation et leurs tests.
-
-## Source de données
-
-Historique des prix : archives annuelles XML publiées sur https://www.prix-carburants.gouv.fr/rubrique/opendata/ (Licence Ouverte). Périmètre : 2025 et 2026 (année en cours).
+Dans un environnement virtuel (`python -m venv .venv`, puis `source .venv/bin/activate` sous WSL ou Linux) :
 
 ```bash
-python -m backend.download            # télécharge 2025 et 2026 dans data/raw/historique_xml/ (~62 Mo)
-python -m backend.download --force    # retélécharge, pour rafraîchir l'année en cours
+pip install -r requirements.txt
+python -m backend.train                 # téléchargement, SQLite + table d'analyse SQL + entraînement
+python -m pytest                        # 58 tests
+python -m streamlit run frontend/app.py # démonstrateur
 ```
 
-Les fichiers bruts ne sont jamais modifiés et ne sont pas versionnés. `data/raw/historique_xml/manifest.json` note pour chaque fichier l'URL, la date de téléchargement, la taille et l'empreinte SHA-256.
+Le premier lancement télécharge environ 62 Mo et a besoin du réseau (le premier `pytest` d'un clone vide aussi, s'il doit entraîner le modèle). SQLite 3.35 ou plus est nécessaire (le Python 3.14 du projet l'embarque). Les données sont figées au 2026-10-19 (`DATE_FIN_DONNEES`) : un nouveau téléchargement ne change pas les chiffres.
 
-La page data.gouv.fr citée dans le cadrage n'est plus maintenue (liens en erreur 404). Voir `CLAUDE.md`, section 4.1.
+## Architecture : backend et frontend séparés
 
-## Architecture
-- `backend/` : préparation, SQL, features, modèles, évaluation, service.
-- `frontend/` : interface Streamlit uniquement.
-- `tests/` : tests unitaires, intégration et smoke test de l'application.
-- `docs/` : cadrage, qualité des données, modèle, synthèse, journal IA, soutenance.
-- `data/raw/` : sources immuables ; ne pas les committer si volumineuses ou si la politique de dépôt l'interdit.
+```
+backend/                 logique métier (aucun import de streamlit)
+  config.py              chemins, seed, sources, périmètre, hypothèses de flotte
+  download.py            téléchargement des archives, du Brent et du taux de change + manifeste
+  sql/table_analyse.sql  table d'analyse construite en SQL (prix, stations, Brent, taux)
+  data.py                fichiers bruts -> SQLite -> table d'analyse
+  model.py               Random Forest, seuil, regret, K-means, choix de la station (top-3 net du détour)
+  train.py               entraînement des 3 modèles et sauvegarde
+  service.py             SEULE interface appelée par le frontend
+frontend/
+  app.py                 Streamlit : affichage uniquement (3 onglets)
+tests/                   tests du backend et démarrage de l'appli
+docs/                    note de cadrage, Data Quality Card, Model Card, note de synthèse, journal IA, plan de soutenance
+data/raw/                données brutes (jamais modifiées, ignorées par Git)
+models/                  modèle et métriques produits par l'entraînement (ignorés par Git)
+```
 
-## État du projet
-Ce dépôt est un kit de cadrage initial. Aucun résultat empirique n'est considéré comme établi tant que les données n'ont pas été inspectées et les analyses exécutées.
+**Règle :** le frontend n'importe que `backend.service`. On pourrait remplacer Streamlit par une API FastAPI ou un autre front sans toucher au backend.
+
+## Limites
+
+- Le Brent de la veille suppose un flux quotidien. La source gratuite (EIA via FRED) arrive par lots : le 2026-10-20, la dernière valeur datait du 2026-10-14. En usage réel, il faut un cours quotidien (abonnement ou relevé manuel le matin).
+- Avec le retard réel de 8 jours, le modèle fait pire que sans Brent : regret de 0,93 c€/L contre 0,90, et ROC-AUC de 0,67 contre 0,68. Le gain annoncé ne vaut que si le Brent de la veille est disponible.
+- Le gain a un plafond : 1,24 c€/L en connaissant l'avenir, environ 1 550 € par an pour la flotte fictive. Le modèle en capte 0,58 c€/L.
+- Le modèle conseille de faire le plein dans 62 % des cas. Il ne dit « attendre » que dans une minorité de situations.
+- Une seule période de test (2026-05-04 → 2026-10-16), pendant une crise des prix (gazole et Brent en forte hausse en 2026). Les résultats ne sont pas garantis hors de ce contexte, et la validation croisée varie d'un pli à l'autre (écart-type de 0,01 à 0,06 selon le modèle).
+- Le 1er janvier 2026, la médiane nationale saute de 1,554 à 1,599 €/L en deux jours. La cause n'est pas vérifiée (une évolution de fiscalité est probable, non confirmée).
+- Les volumes de la flotte (40 véhicules, 60 L, 1 plein par semaine) sont fictifs. Les euros par an en dépendent directement.
+- Gazole seulement, départements 59 et 62, stations hors autoroute. Aucun calcul d'itinéraire : le détour vers une autre station est estimé à vol d'oiseau × 1,3, et les tournées réelles sont inconnues.
+- Le modèle est une aide à la décision : le gestionnaire décide.
+
+## Retours du COMEX et ce que nous avons changé
+
+| Retour | Ce que nous avons changé |
+|---|---|
+| à remplir après le J3 | à remplir après le J3 |
+
+La note de synthèse est écrite en Markdown (`docs/note_synthese.md`), puis exportée en PDF (`docs/note_synthese.pdf`) à la main par l'équipe. Les slides sont exportées de la même façon en `docs/soutenance.pdf`.

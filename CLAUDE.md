@@ -6,7 +6,7 @@ Tu es l'ingénieur logiciel senior, data engineer, data scientist et reviewer te
 
 Le projet exploite les données publiques françaises de prix des carburants (voir les sources exactes en section 4.1).
 
-Langue de travail et documentation : français. Noms de variables, fonctions et modules : anglais clair, sauf convention déjà établie dans le dépôt.
+Langue de travail et documentation : français. Noms de variables, fonctions et modules : français, comme l'exemple du formateur (`RACINE`, `charger_brut_dans_sqlite`).
 
 ## 2. Sources de vérité et hiérarchie
 
@@ -21,20 +21,19 @@ Langue de travail et documentation : français. Noms de variables, fonctions et 
 
 Ne prétends jamais qu'une fonction, un test, une source ou un résultat existe sans l'avoir vérifié. Ne fabrique aucune métrique, résultat, citation, donnée, URL de téléchargement direct ou contrainte de notation. N'utilise que des URL lues sur une page officielle.
 
-## 3. Objectif métier provisoire
+## 3. Question business
 
-Aider un utilisateur à repérer les stations-service dont les prix méritent une attention particulière, à comprendre les différences de profils entre stations et à étudier l'évolution des prix, en tenant compte des données manquantes et des anomalies de collecte.
+La PME Livraisons Exemple (client fictif, basée dans le Nord) fait le plein de ses 40 utilitaires diesel une fois par semaine, dans les stations de ses tournées (Nord et Pas-de-Calais). **Pour une station donnée, faut-il faire le plein aujourd'hui ou attendre 3 jours, et combien la flotte économise-t-elle en suivant le modèle ?** Les prix du gazole sont croisés avec le cours du Brent et le taux euro/dollar. Le modèle est une aide à la décision : le gestionnaire de flotte décide.
 
-L'équipe doit confirmer cette formulation avant de la considérer définitive. Toute recommandation doit être reliée à un usage explicite. Une anomalie statistique n'est pas automatiquement une erreur ni une fraude : l'interface doit employer des formulations neutres comme « observation atypique à examiner ».
-
-Le cahier des charges impose une **question business avec un client identifié et un enjeu chiffré**, et une **décision** (voir 4.2). La formulation ci-dessus doit être complétée dans ce sens.
+Le détail (hypothèses de flotte, corrections après autocritique, décisions) est dans `docs/superpowers/specs/2026-10-20-plein-flotte-design.md`.
 
 ## 4. Exigences fonctionnelles et techniques
 
 ### 4.1 Sources de données (vérifiées le 2026-10-20)
 
 - **Historique (source principale)** : archives annuelles XML zippées publiées sur https://www.prix-carburants.gouv.fr/rubrique/opendata/ , aux URL `https://donnees.roulez-eco.fr/opendata/annee/AAAA` (2007 à l'année en cours). Périmètre retenu : **2025 et 2026** (2026 = année en cours, fichier mis à jour chaque jour). Licence Ouverte.
-- **Photo de la veille (secondaire)** : https://www.data.gouv.fr/datasets/prix-des-carburants-en-france-flux-quotidien-1 (export CSV, une ligne par station et carburant, dernier prix connu). Pas d'historique.
+- **Brent quotidien** : EIA (domaine public), série DCOILBRENTEU, via le miroir CSV de FRED : https://fred.stlouisfed.org/graph/fredgraph.csv?id=DCOILBRENTEU&cosd=2024-12-01
+- **Taux euro/dollar quotidien** : BCE : https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?format=csvdata&startPeriod=2024-12-01
 - La page citée dans le cadrage (`.../prix-des-carburants-en-france-flux-quotidien`, sans `-1`) n'est plus maintenue : ses liens renvoient une erreur 404. Changement de source à faire valider par l'équipe.
 - Les données brutes sont exclues de Git. Elles sont récupérées par `python -m backend.download`, qui note URL, date, taille et SHA-256 dans un manifeste. Un dépôt cloné dans un dossier vide doit pouvoir tout reconstruire.
 
@@ -156,7 +155,7 @@ Une fonctionnalité est terminée uniquement si :
 - aucune donnée ou performance n'a été inventée ;
 - elle passe la checklist `exemple_projet_a_suivre/checklist_clean_code.md`.
 
-Avant le rendu : cloner le dépôt dans un dossier vide, puis `pip install -r requirements.txt`, `python -m backend.download`, `python -m backend.train`, `python -m pytest`, `python -m streamlit run frontend/app.py` doivent fonctionner du premier coup.
+Avant le rendu : cloner le dépôt dans un dossier vide, puis `pip install -r requirements.txt`, `python -m backend.train` (qui lance lui-même le téléchargement), `python -m pytest`, `python -m streamlit run frontend/app.py` doivent fonctionner du premier coup.
 
 ## 11. Commandes et environnement
 

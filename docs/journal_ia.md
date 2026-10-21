@@ -1,14 +1,25 @@
-# Journal d'utilisation de l'IA
+# Journal d'usage de l'IA
 
-Consigner l'utilisation importante de Claude Code et de tout autre outil d'IA. Ne pas y inscrire de secrets ni de données personnelles inutiles.
+> Journal de la session du 2026-10-20. Les prompts sont résumés en substance. Le code final est réel : chaque ligne renvoie à un fichier ou à un document de ce dépôt.
 
-| Date | Outil/modèle | Tâche | Prompt ou résumé | Fichiers concernés | Résultat proposé | Vérification humaine | Décision/correction |
-|---|---|---|---|---|---|---|---|
-| À remplir | Claude Code | Cadrage | À compléter | CLAUDE.md, docs/ | À compléter | À compléter | À compléter |
+**Outils utilisés :** Claude (assistant de code, Claude Code), avec des agents qui écrivent chaque tâche et d'autres qui la relisent.
 
-## Principes
-- L'IA peut proposer du code, des hypothèses, des tests et des formulations.
-- L'équipe reste responsable des résultats et doit exécuter les analyses.
-- Vérifier les bibliothèques, les API, les sources, les citations et les chiffres.
-- Mentionner les propositions rejetées ou corrigées lorsqu'elles sont importantes.
-- Ne jamais déclarer une commande exécutée si elle ne l'a pas été.
+| # | Fichier ou étape | Le prompt (résumé) | Ce que l'IA a produit | Gardé | Corrigé, et pourquoi | Refusé, et pourquoi |
+|---|---|---|---|---|---|---|
+| 1 | Cadrage du dépôt | « Respecte exactement `exemple_projet_a_suivre` » | Lecture du cahier des charges et de l'exemple, liste des écarts du dépôt | La liste des écarts | | |
+| 2 | Choix du client | (proposé par l'IA) | Un gestionnaire de flotte | Accepté par l'équipe | | |
+| 3 | Données complémentaires | « D'autres groupes ont le même sujet ; le professeur propose de croiser avec une base complémentaire » | Brent (EIA via FRED) et euro/dollar (BCE), sources vérifiées | Brent et euro/dollar | | INSEE écarté |
+| 4 | Spec, question business (§ 2.1) | « Autocritique ta question business et corrige les biais selon les données » | Mesures sur les données, puis corrections | Toutes les corrections de la spec | Horizon de 7 jours ramené à 3 jours : incohérent avec un plein hebdomadaire (**décision business**) ; retard de publication du Brent mesuré, scénario à 8 jours ajouté (**validation**) ; cible « hausse > 1 c€ » remplacée par « hausse stricte » et formule du seuil corrigée (**correct**) ; plafond de gain affiché ; split temporel adapté à la crise 2026 (**validation**) ; périmètre 59/62 ; règle de report des trous ; saut du 1er janvier signalé | |
+| 5 | Relecture de la spec | Relecture par un autre agent | 6 questions | 5 tranchées par l'IA : données figées au 2026-10-19, 4 commandes, prix avant midi et taux de la veille, 2 actions seulement, PDF exportés à la main | | |
+| 6 | Modèle de la démo | La relecture pose la question du modèle | | | Tranché par l'équipe : modèle « Brent de la veille » | |
+| 7 | Tâches 1 à 8 | Exécution du plan, chaque tâche écrite par un agent et relue par un autre | Code, tests, documents | Chargement en Python comme l'exemple | Test du week-end incapable d'échouer (**tests**) ; 5 variables sans test de valeur (**tests**) ; station à une ligne qui faisait planter la segmentation (**robustesse**) ; validation croisée sans purge, qui donnait 0,674 / 0,696 / 0,651 (**fuite de données**, corrigée par des plis en jours entiers avec purge de 3 jours) | `class_weight="balanced"` retiré : le seuil issu des coûts exige des probabilités non déformées (**décision business**) |
+
+## Les catégories de la checklist du TD 4
+
+correct · fuite de données · validation · décision business · robustesse · sécurité et RGPD · reproductibilité · dépendances · tests · lisibilité
+
+## Bilan en 3 lignes
+
+- **Ce que l'IA nous a fait gagner :** la mesure des données avant de figer la question (horizon, retard du Brent, plafond de gain), et le squelette du pipeline et des tests.
+- **L'erreur qui nous aurait coûté le plus cher :** la validation croisée sans purge, qui donnait des scores trop bons parce que des jours voisins se retrouvaient de part et d'autre d'un pli.
+- **Ce que nous ne lui confierions pas sans relecture :** le choix de la question, de la cible et du seuil, et l'écriture des limites. L'équipe doit relire elle-même tous les chiffres du README, les textes de la soutenance et les limites.

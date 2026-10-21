@@ -1,52 +1,19 @@
-# Model Card — à remplir pour chaque modèle livré
+# Model Card : aide au plein de la flotte (gazole)
 
-## Identification
-- Nom et version du modèle :
-- Responsable :
-- Date :
-- Commit Git :
-- Version des données / période :
-- Objectif métier :
+> D'après Mitchell et al. (2019), *Model Cards for Model Reporting*.
 
-## Usage prévu
-- Décision soutenue :
-- Utilisateurs :
-- Situations dans lesquelles le modèle ne doit pas être utilisé :
-
-## Données et caractéristiques
-- Population et périmètre :
-- Variables d'entrée :
-- Variables exclues et raisons :
-- Préparation et mise à l'échelle :
-- Gestion des données manquantes :
-- Risque de fuite de données :
-
-## Méthode et référence
-- Algorithme :
-- Baseline :
-- Hyperparamètres et seuils :
-- Justification du choix :
-- Protocole d'évaluation :
-- Métriques et résultats calculés :
-- Comparaison avec la baseline :
-
-## Interprétation
-- Comment interpréter une sortie :
-- Explication d'un signal :
-- Niveau de confiance ou limites de couverture :
-- Exemples examinés manuellement :
-
-## Limites et risques
-- Biais de couverture :
-- Stations/carburants/périodes mal représentés :
-- Risque de faux positifs :
-- Risque de fausse précision des prévisions :
-- Conditions d'abstention (« données insuffisantes ») :
-- Surveillance et règle de réentraînement :
-
-## Statut
-- [ ] Prototype
-- [ ] Évalué
-- [ ] Testé en intégration
-- [ ] Prêt pour la démonstration
-- [ ] Non destiné à une décision automatisée sans revue humaine
+| Rubrique | Contenu |
+|---|---|
+| **Usage prévu** | Aider le gestionnaire de flotte de Livraisons Exemple à décider, pour une station du Nord ou du Pas-de-Calais, de faire le plein aujourd'hui ou d'attendre 3 jours. Le gestionnaire décide. |
+| **Usages à éviter** | Décision automatique ; autre carburant ; autre région ; usage avec un Brent en retard (le modèle fait alors pire que sans Brent) ; calcul d'itinéraire. |
+| **Modèle** | Trois forêts aléatoires entraînées sur les mêmes lignes : sans Brent, avec Brent de la veille, avec Brent à 8 jours de retard. Pas de pondération des classes. `random_state=42`. Le modèle de la démonstration (`models/modele.joblib`) est celui avec le Brent de la veille. |
+| **Données** | 475 stations, Nord et Pas-de-Calais, hors autoroute. Split temporel : 151 686 lignes d'entraînement (jusqu'au 2026-04-30), 55 262 lignes de test (du 2026-05-04 au 2026-10-16), purge de 3 jours entre les deux. Voir `data_quality_card.md`. |
+| **Baseline** | Toujours faire le plein tout de suite : regret moyen de 1,24 c€/L sur le test. Toujours attendre 3 jours : 1,60 c€/L. |
+| **Performances** | Regret moyen au seuil issu des coûts : 0,90 c€/L sans Brent, **0,66 avec le Brent de la veille**, 0,93 avec le Brent à 8 jours. ROC-AUC sur le test / en validation croisée temporelle (moyenne ± écart-type) : 0,68 / 0,67 ± 0,05 sans Brent ; 0,70 / 0,69 ± 0,01 avec le Brent de la veille ; 0,67 / 0,65 ± 0,06 avec le Brent à 8 jours. La validation croisée utilise des plis en jours entiers avec une purge de 3 jours. |
+| **Décision** | Seuil de 0,26 sur la probabilité de hausse : on fait le plein si elle le dépasse. Il vient de B / (H + B), avec H = 3,25 c€/L (hausse moyenne quand le prix monte) et B = 1,16 c€/L (baisse moyenne, zéros compris, quand il ne monte pas), mesurés sur l'entraînement seulement. Avec un seuil de 0,5, le regret du modèle avec Brent de la veille est de 0,86 c€/L au lieu de 0,66. |
+| **Choix de la station** | Top-3 des stations à moins de 5 km, moins chères en moyenne sur l'entraînement (écart au prix médian du département), gardées seulement si le gain par plein dépasse le coût du détour (carburant + temps du chauffeur, hypothèses fictives). Sur le test (402 stations) : 14 % des stations ont une alternative rentable, pour 0,03 € par plein, soit environ 66 € par an. Si la station moins chère est déjà sur la tournée (sans détour) : 72 % des stations, 2,17 c€/L, environ 2 710 € par an. Ce plafond suppose des tournées que les données ne contiennent pas. |
+| **Variables importantes** | Importance par permutation (modèle avec Brent de la veille) : variation du Brent sur 7 jours en tête, puis l'écart au prix médian du département. Sans Brent : la variation de la médiane départementale sur 7 jours, puis l'écart à la médiane. Une variable importante n'est pas une cause. |
+| **Segments** | K-means, k = 3, sur le prix relatif au département, le nombre de changements de prix par semaine et la volatilité (standardisés). Stations « moins chères que leur département » : 153 stations, 1,36 c€/L sous la médiane, 3,10 changements par semaine. Stations « proches de la médiane, qui changent peu leur prix » : 232 stations, 0,76 c€/L au-dessus, 1,39 changement par semaine. Stations « chères » : 67 stations, 7,76 c€/L au-dessus de la médiane. Ces chiffres sortent de `service.profils_segments(3)`, pas de `metriques.json`. |
+| **Équité** | Sans objet : pas de données personnelles. |
+| **Limites** | Une seule période de test, pendant une crise des prix de 2026 ; le modèle conseille « faire le plein » dans 62 % des cas ; le gain plafonne à 1,24 c€/L ; le Brent gratuit arrive avec du retard ; saut du 1er janvier 2026 de cause non vérifiée ; modèle non recalibré. |
+| **Maintenance** | Indicateur à suivre : le regret moyen observé sur les derniers pleins. S'il dépasse celui de « toujours faire le plein » (1,24 c€/L), arrêter d'utiliser le modèle et réentraîner. Réentraîner : `python -m backend.download --forcer`, puis changer `DATE_FIN_DONNEES` dans `backend/config.py`, puis relancer `python -m backend.train`. |

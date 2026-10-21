@@ -1,21 +1,5 @@
-# À compléter après l'audit des formats et la validation des dépendances.
-# N'installer que les bibliothèques réellement nécessaires, puis verrouiller les versions.
-
-# Manipulation des données (lecture CSV/XML, table d'analyse issue de SQL).
-pandas==3.0.6
-
-# Modèles : clustering et détection d'anomalies (exigence du projet).
-scikit-learn==1.9.1
-
-# Séries temporelles classiques : baselines et prévisions ARIMA/SARIMAX.
-statsmodels==0.15.0
-
-# Séries temporelles (prévision, clustering et anomalies sur les séries de prix par station).
-# Dépendance proposée, à valider par l'équipe. Version compatible Python 3.14.
-aeon==1.6.0
-
-# Démo : interface Streamlit (frontend uniquement, jamais importé dans backend/).
-streamlit==1.66.0
-
-# Tests automatisés.
-pytest==9.1.1
+pandas==3.0.*
+scikit-learn==1.9.*
+joblib==1.6.*
+streamlit==1.66.*
+pytest==9.*

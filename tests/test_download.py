@@ -1,4 +1,4 @@
-"""Tests du téléchargement des archives XML (sans accès réseau)."""
+"""Tests du téléchargement des 4 sources (sans accès réseau)."""
 import io
 import json
 import zipfile
@@ -8,74 +8,91 @@ import pytest
 from backend import download
 
 
-def make_zip_bytes() -> bytes:
-    buffer = io.BytesIO()
-    with zipfile.ZipFile(buffer, "w") as archive:
+def fabriquer_zip() -> bytes:
+    tampon = io.BytesIO()
+    with zipfile.ZipFile(tampon, "w") as archive:
         archive.writestr("PrixCarburants_annuel_2025.xml", "<pdv_liste></pdv_liste>")
-    return buffer.getvalue()
+    return tampon.getvalue()
 
 
-def fake_opener(payload: bytes, calls: list):
-    def open_url(url, timeout):
-        calls.append(url)
-        return io.BytesIO(payload)
+def faux_ouvreur(contenu: bytes, appels: list):
+    def ouvrir_url(url, delai):
+        appels.append(url)
+        return io.BytesIO(contenu)
 
-    return open_url
-
-
-def test_archive_url_contains_year():
-    assert download.archive_url(2025).endswith("/opendata/annee/2025")
+    return ouvrir_url
 
 
-def test_download_writes_valid_zip_with_checksum(tmp_path):
-    payload = make_zip_bytes()
-    calls = []
-
-    entry = download.download_archive(2025, tmp_path, open_url=fake_opener(payload, calls))
-
-    target = tmp_path / "PrixCarburants_annuel_2025.zip"
-    assert target.read_bytes() == payload
-    assert entry["sha256"] == download.sha256_of(target)
-    assert entry["size_bytes"] == len(payload)
-    assert entry["url"] == calls[0]
+def test_url_archive_contient_annee():
+    assert download.url_archive(2025).endswith("/opendata/annee/2025")
 
 
-def test_existing_archive_is_not_downloaded_again(tmp_path):
-    (tmp_path / "PrixCarburants_annuel_2025.zip").write_bytes(make_zip_bytes())
-    calls = []
+def test_telechargement_ecrit_zip_valide_et_empreinte(tmp_path):
+    contenu = fabriquer_zip()
+    appels = []
 
-    entry = download.download_archive(2025, tmp_path, open_url=fake_opener(b"", calls))
+    entree = download.telecharger_archive(2025, tmp_path, ouvrir_url=faux_ouvreur(contenu, appels))
 
-    assert entry is None
-    assert calls == []
+    cible = tmp_path / "PrixCarburants_annuel_2025.zip"
+    assert cible.read_bytes() == contenu
+    assert entree["sha256"] == download.empreinte_sha256(cible)
+    assert entree["size_bytes"] == len(contenu)
+    assert entree["url"] == appels[0]
 
 
-def test_force_downloads_again(tmp_path):
+def test_archive_presente_pas_retelechargee(tmp_path):
+    (tmp_path / "PrixCarburants_annuel_2025.zip").write_bytes(fabriquer_zip())
+    appels = []
+
+    entree = download.telecharger_archive(2025, tmp_path, ouvrir_url=faux_ouvreur(b"", appels))
+
+    assert entree is None
+    assert appels == []
+
+
+def test_forcer_retelecharge(tmp_path):
     (tmp_path / "PrixCarburants_annuel_2025.zip").write_bytes(b"ancien")
-    calls = []
+    appels = []
 
-    entry = download.download_archive(
-        2025, tmp_path, force=True, open_url=fake_opener(make_zip_bytes(), calls)
+    entree = download.telecharger_archive(
+        2025, tmp_path, forcer=True, ouvrir_url=faux_ouvreur(fabriquer_zip(), appels)
     )
 
-    assert entry is not None
-    assert len(calls) == 1
+    assert entree is not None
+    assert len(appels) == 1
 
 
-def test_invalid_archive_is_rejected_and_not_kept(tmp_path):
+def test_archive_invalide_rejetee_et_supprimee(tmp_path):
     with pytest.raises(ValueError):
-        download.download_archive(
-            2025, tmp_path, open_url=fake_opener(b"<html>erreur</html>", [])
+        download.telecharger_archive(
+            2025, tmp_path, ouvrir_url=faux_ouvreur(b"<html>erreur</html>", [])
         )
 
     assert list(tmp_path.iterdir()) == []
 
 
-def test_manifest_keeps_previous_entries(tmp_path):
-    manifest = tmp_path / "manifest.json"
-    download.update_manifest([{"file": "a.zip", "sha256": "1"}], manifest)
-    download.update_manifest([{"file": "b.zip", "sha256": "2"}], manifest)
+def test_manifeste_garde_les_entrees_precedentes(tmp_path):
+    manifeste = tmp_path / "manifest.json"
+    download.mettre_a_jour_manifeste([{"file": "a.zip", "sha256": "1"}], manifeste)
+    download.mettre_a_jour_manifeste([{"file": "b.zip", "sha256": "2"}], manifeste)
 
-    content = json.loads(manifest.read_text(encoding="utf-8"))
+    contenu = json.loads(manifeste.read_text(encoding="utf-8"))
 
-    assert set(content) == {"a.zip", "b.zip"}
+    assert set(contenu) == {"a.zip", "b.zip"}
+
+
+def test_csv_valide_ecrit_avec_empreinte(tmp_path):
+    contenu = b"observation_date,DCOILBRENTEU\n2026-10-13,125.78\n"
+    cible = tmp_path / "brent.csv"
+    entree = download.telecharger_csv("http://x", cible, "observation_date",
+                                      ouvrir_url=faux_ouvreur(contenu, []))
+    assert cible.read_bytes() == contenu
+    assert entree["sha256"] == download.empreinte_sha256(cible)
+
+
+def test_csv_avec_mauvais_entete_rejete(tmp_path):
+    cible = tmp_path / "brent.csv"
+    with pytest.raises(ValueError):
+        download.telecharger_csv("http://x", cible, "observation_date",
+                                 ouvrir_url=faux_ouvreur(b"<html>erreur</html>", []))
+    assert list(tmp_path.iterdir()) == []
