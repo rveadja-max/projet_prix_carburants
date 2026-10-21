@@ -1,6 +1,6 @@
 # SEP Conseil et Livraisons Exemple : aide au plein de la flotte
 
-> Projet de formation (data mining). Datasets : [prix des carburants en France](https://www.prix-carburants.gouv.fr/rubrique/opendata/) (Licence Ouverte), cours du Brent de l'EIA via [FRED](https://fred.stlouisfed.org/series/DCOILBRENTEU) (domaine public) et taux euro/dollar de la [BCE](https://data.ecb.europa.eu/). Équipe : [à compléter par l'équipe].
+> Projet de formation (data mining). Datasets : [prix des carburants en France](https://www.data.gouv.fr/fr/datasets/prix-des-carburants-en-france-flux-quotidien-1/) (Licence Ouverte), cours du Brent de l'EIA via [FRED](https://fred.stlouisfed.org/series/DCOILBRENTEU) (domaine public) et taux euro/dollar de la [BCE](https://data.ecb.europa.eu/). Équipe : [à compléter par l'équipe].
 
 ## Question business
 

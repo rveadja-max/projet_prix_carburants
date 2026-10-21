@@ -1,4 +1,5 @@
-"""Accès aux données : fichiers bruts (XML, CSV) -> SQLite -> table d'analyse (SQL puis pandas)."""
+"""Accès aux données : fichiers bruts (archives XML, flux quotidien CSV, CSV de marché)
+-> SQLite -> table d'analyse (SQL puis pandas)."""
 import sqlite3
 import xml.etree.ElementTree as ET
 import zipfile
@@ -9,8 +10,9 @@ import pandas as pd
 
 from backend.config import (
     ANNEES, BASE, CARBURANT, DATE_FIN_DONNEES, DEPARTEMENTS, DOSSIER_HISTORIQUE, FICHIER_BRENT,
-    FICHIER_TAUX, HEURE_DECISION, HORIZON_JOURS, PRIX_MAX, PRIX_MIN, REPORT_MAX_JOURS,
-    RETARD_BRENT_JOURS, RETARD_BRENT_REALISTE_JOURS, RETARD_TAUX_JOURS, TYPES_ZONE,
+    FICHIER_FLUX_QUOTIDIEN, FICHIER_TAUX, HEURE_DECISION, HORIZON_JOURS, PRIX_MAX, PRIX_MIN,
+    REPORT_MAX_JOURS, RETARD_BRENT_JOURS, RETARD_BRENT_REALISTE_JOURS, RETARD_TAUX_JOURS,
+    TYPES_ZONE,
 )
 from backend.download import chemin_archive
 
@@ -95,6 +97,46 @@ def lire_archive(archive: Path, date_fin: str, con: sqlite3.Connection) -> int:
     return ignores
 
 
+def lire_flux_quotidien(fichier: Path, date_fin: str, con: sqlite3.Connection) -> int:
+    """Lit le flux quotidien (lien stable data.gouv.fr, CSV séparateur « ; », encodé en UTF-8) :
+    une ligne par station × carburant, dernier prix déclaré. Insère stations et prix du carburant.
+
+    Le « geom » du flux est « longitude,latitude » en degrés (contrairement aux archives XML).
+    Renvoie le nombre de prix ignorés (autre carburant, hors bornes ou après `date_fin`)."""
+    table = pd.read_csv(fichier, sep=";", dtype=str, encoding="utf-8-sig", on_bad_lines="skip")
+    ignores = 0
+    for ligne in table.itertuples(index=False):
+        if str(ligne.prix_nom) != CARBURANT:
+            continue
+        try:
+            valeur = float(str(ligne.prix_valeur).replace(",", "."))
+        except ValueError:
+            ignores += 1
+            continue
+        maj = str(ligne.prix_maj).replace(" ", "T")[:19]
+        if not PRIX_MIN <= valeur <= PRIX_MAX or maj[:10] > date_fin:
+            ignores += 1
+            continue
+        lat, lon = None, None
+        geom = str(getattr(ligne, "geom", ""))
+        if "," in geom:
+            try:
+                lon, lat = (float(v) for v in geom.split(",", 1))
+            except ValueError:
+                lat, lon = None, None
+        cp = str(getattr(ligne, "cp", "") or "")
+        con.execute(
+            "insert or replace into stations values (?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                str(ligne.id), cp, cp[:2], str(getattr(ligne, "pop", "") or ""),
+                str(getattr(ligne, "ville", "") or ""), str(getattr(ligne, "adresse", "") or ""),
+                lat, lon,
+            ),
+        )
+        con.execute("insert into prix values (?, ?, ?)", (str(ligne.id), maj, valeur))
+    return ignores
+
+
 def lire_serie_csv(fichier: Path, col_jour: str, col_valeur: str, date_fin: str) -> list[tuple[str, float]]:
     """Lit un CSV (jour, valeur) : ignore les valeurs manquantes (`.`) et les jours après `date_fin`."""
     table = pd.read_csv(fichier, usecols=[col_jour, col_valeur], dtype=str)
@@ -110,8 +152,14 @@ def charger_brut_dans_sqlite(
     fichier_taux: Path = FICHIER_TAUX,
     base: Path = BASE,
     date_fin: str = DATE_FIN_DONNEES,
+    flux_quotidien: Path | None = FICHIER_FLUX_QUOTIDIEN,
 ) -> dict[str, int]:
-    """Charge XML et CSV bruts dans SQLite (tables remplacées). Renvoie le nombre de lignes par table."""
+    """Charge XML, flux quotidien et CSV bruts dans SQLite (tables remplacées).
+
+    Le flux quotidien (lien stable data.gouv.fr) est un instantané : il rafraîchit le dernier
+    prix connu de chaque station mais ne porte pas l'historique, qui vient des archives.
+    `flux_quotidien=None` ou un fichier absent : le chargement se fait sans lui.
+    Renvoie le nombre de lignes par table."""
     if archives is None:
         archives = [chemin_archive(annee, DOSSIER_HISTORIQUE) for annee in ANNEES]
     for fichier in [*archives, fichier_brent, fichier_taux]:
@@ -121,6 +169,8 @@ def charger_brut_dans_sqlite(
     with closing(sqlite3.connect(base)) as con:
         con.executescript(SCHEMA)
         ignores = sum(lire_archive(archive, date_fin, con) for archive in archives)
+        if flux_quotidien is not None and Path(flux_quotidien).exists():
+            ignores += lire_flux_quotidien(Path(flux_quotidien), date_fin, con)
         con.execute(
             "delete from prix where rowid not in (select min(rowid) from prix group by station, maj)"
         )

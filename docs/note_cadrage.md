@@ -37,7 +37,7 @@ Pour une station donnée, faut-il faire le plein de la flotte aujourd'hui ou att
 - Crise de prix en 2026 : une seule période de test, changement de régime possible.
 - Trous dans les séries de prix : report du dernier prix sur 7 jours au plus, au-delà la ligne est exclue.
 - Saut inexpliqué au 1er janvier 2026.
-- Source : la page data.gouv.fr citée dans le cadrage renvoie 404 ; changement de source à faire valider par le formateur.
+- Source : le formateur a validé le lien stable data.gouv.fr du flux quotidien (consigne du 2026-10-21) ; les archives annuelles XML (même producteur, même licence) portent l'historique.
 
 ## 6. Qui fait quoi
 

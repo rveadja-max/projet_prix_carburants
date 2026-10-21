@@ -1,11 +1,13 @@
-"""Téléchargement des 4 sources de données : 2 archives XML, Brent (FRED) et EUR/USD (BCE).
+"""Téléchargement des sources de données : flux quotidien data.gouv.fr, archives XML annuelles,
+Brent (FRED) et EUR/USD (BCE).
 
 Usage : python -m backend.download [--annees 2025 2026] [--forcer]
 
-Les archives vont dans data/raw/historique_xml/, les CSV dans data/raw/, et ne sont jamais
-modifiés ensuite. Chaque téléchargement est noté dans data/raw/manifest.json (URL, date,
-taille, SHA-256). Un fichier déjà présent n'est pas retéléchargé, sauf avec --forcer
-(utile pour rafraîchir l'année en cours, mise à jour chaque jour par la source).
+Les archives vont dans data/raw/historique_xml/, les CSV (flux quotidien, Brent, taux) dans
+data/raw/, et ne sont jamais modifiés ensuite. Chaque téléchargement est noté dans
+data/raw/manifest.json (URL, date, taille, SHA-256). Un fichier déjà présent n'est pas
+retéléchargé, sauf avec --forcer (utile pour rafraîchir le flux quotidien et l'année en
+cours, mis à jour chaque jour par les sources).
 """
 import argparse
 import hashlib
@@ -21,10 +23,12 @@ from backend.config import (
     DELAI_TELECHARGEMENT_S,
     DOSSIER_HISTORIQUE,
     FICHIER_BRENT,
+    FICHIER_FLUX_QUOTIDIEN,
     FICHIER_MANIFESTE,
     FICHIER_TAUX,
     URL_ARCHIVE_ANNUELLE,
     URL_BRENT,
+    URL_FLUX_QUOTIDIEN,
     URL_PAGE_SOURCE,
     URL_TAUX,
 )
@@ -128,7 +132,7 @@ def mettre_a_jour_manifeste(entrees: list[dict], manifeste: Path = FICHIER_MANIF
 
 
 def telecharger_tout(forcer: bool = False, annees=ANNEES) -> list[dict]:
-    """Télécharge archives, Brent et taux. Renvoie les nouvelles entrées et met à jour le manifeste."""
+    """Télécharge flux quotidien, archives, Brent et taux. Met à jour le manifeste."""
     entrees = []
     for annee in annees:
         entree = telecharger_archive(annee, forcer=forcer)
@@ -137,7 +141,8 @@ def telecharger_tout(forcer: bool = False, annees=ANNEES) -> list[dict]:
             continue
         print(f"{annee} : {entree['size_bytes']:,} octets, sha256 {entree['sha256'][:12]}…")
         entrees.append(entree)
-    for url, cible, entete in ((URL_BRENT, FICHIER_BRENT, "observation_date"),
+    for url, cible, entete in ((URL_FLUX_QUOTIDIEN, FICHIER_FLUX_QUOTIDIEN, "id;"),
+                               (URL_BRENT, FICHIER_BRENT, "observation_date"),
                                (URL_TAUX, FICHIER_TAUX, "KEY")):
         entree = telecharger_csv(url, cible, entete, forcer=forcer)
         if entree is None:

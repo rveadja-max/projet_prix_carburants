@@ -7,7 +7,8 @@ import pandas as pd
 import pytest
 
 from backend.data import (
-    charger_brut_dans_sqlite, convertir_coordonnee, lire_position, enregistrer_table_analyse, executer_requete_analyse, lire_table_analyse,
+    charger_brut_dans_sqlite, convertir_coordonnee, lire_flux_quotidien, lire_position,
+    enregistrer_table_analyse, executer_requete_analyse, lire_table_analyse,
     lire_table_enregistree,
 )
 
@@ -256,3 +257,43 @@ def test_table_enregistree_aller_retour(table, tmp_path):
 def test_base_absente_leve_une_erreur(tmp_path):
     with pytest.raises(FileNotFoundError, match="python -m backend.train"):
         lire_table_analyse(base=tmp_path / "absente.db")
+
+
+# --- Flux quotidien (lien stable data.gouv.fr) -------------------------------------------------
+
+
+def test_lire_flux_quotidien_filtre_carburant_bornes_et_date(tmp_path):
+    flux = tmp_path / "prix_quotidien.csv"
+    flux.write_text(
+        "id;cp;pop;adresse;ville;prix_nom;prix_valeur;prix_maj;geom\n"
+        "5900001;59000;R;1 rue de l'Église;LILLE;Gazole;1.62;2026-10-20 06:00:00;3.05,50.63\n"
+        "5900001;59000;R;1 rue de l'Église;LILLE;SP95;1.75;2026-10-20 06:00:00;3.05,50.63\n"
+        "5900002;59100;R;2 rue de la Paix;ROUBAIX;Gazole;9.99;2026-10-20 06:00:00;3.17,50.69\n"
+        "5900003;59200;R;3 rue du Nord;TOURCOING;Gazole;1.65;2026-12-31 06:00:00;3.16,50.72\n"
+        "5900004;59300;R;4 rue du Sud;VALENCIENNES;Gazole;1.55;2026-10-19 06:00:00;3.52,50.36\n",
+        encoding="utf-8",
+    )
+    base = tmp_path / "b.db"
+    with closing(sqlite3.connect(base)) as con:
+        con.executescript(
+            "create table stations (station TEXT PRIMARY KEY, cp TEXT, departement TEXT, zone TEXT,"
+            " ville TEXT, adresse TEXT, latitude REAL, longitude REAL);"
+            "create table prix (station TEXT, maj TEXT, valeur REAL);"
+        )
+        ignores = lire_flux_quotidien(flux, "2026-10-20", con)
+        stations = con.execute(
+            "select station, departement, latitude, longitude from stations order by station"
+        ).fetchall()
+        prix = con.execute("select station, maj, valeur from prix order by station").fetchall()
+
+    # Le SP95 est sauté sans comptage (autre carburant, comme dans l'archive XML) ;
+    # 9,99 (hors bornes) et le 2026-12-31 (après date_fin) sont comptés comme ignorés.
+    assert ignores == 2
+    assert stations == [
+        ("5900001", "59", pytest.approx(50.63), pytest.approx(3.05)),
+        ("5900004", "59", pytest.approx(50.36), pytest.approx(3.52)),
+    ]
+    assert prix == [
+        ("5900001", "2026-10-20T06:00:00", pytest.approx(1.62)),
+        ("5900004", "2026-10-19T06:00:00", pytest.approx(1.55)),
+    ]

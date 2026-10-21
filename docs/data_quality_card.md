@@ -5,7 +5,7 @@
 | Question | Réponse |
 |---|---|
 | Unité d'observation | Une station et un jour (table d'analyse) ; à la source, un prix horodaté par station et carburant |
-| Source, licence, lien | Prix : prix-carburants.gouv.fr, archives XML annuelles (Licence Ouverte). Brent : EIA série RBRTE via FRED (domaine public). Euro/dollar : BCE. URL dans `backend/config.py` |
+| Source, licence, lien | Prix : DGCCRF via data.gouv.fr, flux quotidien (lien stable, instantané) et archives XML annuelles (historique), Licence Ouverte. Brent : EIA série DCOILBRENTEU via FRED (domaine public). Euro/dollar : BCE. URL dans `backend/config.py` |
 | Période et population couvertes | 2025-01-01 → 2026-10-19 (données figées à cette date). Périmètre d'analyse : départements 59 et 62, stations hors autoroute, gazole |
 | Taille | Chargement : 14 980 identifiants de stations (2025 et 2026, y compris stations sans gazole), 2 829 198 prix de gazole, 472 cotations Brent, 479 taux euro/dollar, calendrier de 657 jours. Table d'analyse : 475 stations, 207 958 lignes station-jour, du 2025-01-08 au 2026-10-16 |
 | Cible | `hausse` = 1 si le prix à J+3 est strictement plus haut que celui de J. Taux de hausse de 0,352 sur la table d'analyse |
@@ -33,7 +33,7 @@
 | Variables sensibles | Aucune : données de prix de stations, pas de personnes |
 | Biais de sélection | Seuls les couples station-jour dont le prix avant midi est connu (54 %) ont une ligne : les stations qui déclarent rarement leurs prix sont moins présentes |
 | Données personnelles | Aucune. Adresses de stations publiques |
-| **Changement de source** | La page data.gouv.fr citée dans le cadrage (`.../prix-des-carburants-en-france-flux-quotidien`) renvoie 404. Les archives XML de prix-carburants.gouv.fr sont utilisées à la place. **À faire valider par le formateur** |
+| **Changement de source** | Consigne du formateur (2026-10-21) : lien stable data.gouv.fr du flux quotidien utilisé comme référence officielle des prix (instantané, sans historique). Les archives annuelles XML (même producteur DGCCRF, même licence) portent l'historique des prix. Validé par le formateur |
 
 ## Ce qu'on attend des données
 

@@ -5,15 +5,25 @@ RACINE = Path(__file__).resolve().parents[1]
 DOSSIER_BRUT = RACINE / "data" / "raw"
 DOSSIER_HISTORIQUE = DOSSIER_BRUT / "historique_xml"
 FICHIER_MANIFESTE = DOSSIER_BRUT / "manifest.json"
+FICHIER_FLUX_QUOTIDIEN = DOSSIER_BRUT / "prix_quotidien.csv"
 FICHIER_BRENT = DOSSIER_BRUT / "brent.csv"
 FICHIER_TAUX = DOSSIER_BRUT / "eurusd.csv"
 BASE = RACINE / "data" / "carburants.db"
 FICHIER_MODELE = RACINE / "models" / "modele.joblib"
 FICHIER_METRIQUES = RACINE / "models" / "metriques.json"
 
-# Sources vérifiées le 2026-10-20 : prix-carburants.gouv.fr (Licence Ouverte), FRED (Brent
-# DCOILBRENTEU, dollars par baril) et BCE (taux de change de référence EUR/USD).
-URL_PAGE_SOURCE = "https://www.prix-carburants.gouv.fr/rubrique/opendata/"
+# Sources vérifiées le 2026-10-20, consigne du formateur du 2026-10-21 : lien stable
+# data.gouv.fr pour les prix des carburants (Licence Ouverte), complétés par le taux de
+# change EUR/USD de la BCE. Le Brent (DCOILBRENTEU, dollars par baril) vient de l'EIA via FRED.
+#
+# Prix des carburants, deux fichiers du même producteur (DGCCRF), même licence :
+#   - le flux quotidien (lien stable data.gouv.fr) : instantané du dernier prix déclaré
+#     par station et par carburant, sans historique. C'est la référence officielle demandée
+#     par le formateur ;
+#   - les archives annuelles XML : toutes les mises à jour de l'année. Elles seules portent
+#     l'historique, sans lequel la cible (prix à J + 3 jours) ne peut pas être construite.
+URL_PAGE_SOURCE = "https://www.data.gouv.fr/fr/datasets/prix-des-carburants-en-france-flux-quotidien-1/"
+URL_FLUX_QUOTIDIEN = "https://www.data.gouv.fr/api/1/datasets/r/336c34b5-a527-4c35-b84d-18462daa7c51"
 URL_ARCHIVE_ANNUELLE = "https://donnees.roulez-eco.fr/opendata/annee/{annee}"
 URL_BRENT = "https://fred.stlouisfed.org/graph/fredgraph.csv?id=DCOILBRENTEU&cosd=2024-12-01"
 URL_TAUX = "https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?format=csvdata&startPeriod=2024-12-01"
