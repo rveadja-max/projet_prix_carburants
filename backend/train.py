@@ -4,6 +4,7 @@ import time
 
 import joblib
 import numpy as np
+from sklearn.metrics import brier_score_loss
 from sklearn.model_selection import cross_val_score
 
 from backend.config import (
@@ -51,6 +52,8 @@ def entrainer_modele(variables, entrainement, test, seuil: float) -> tuple:
         "roc_auc_cv_moyenne": float(auc_cv.mean()),
         "roc_auc_cv_ecart_type": float(auc_cv.std()),
         "part_plein_modele": float((proba > seuil).mean()),
+        # Fiabilité des probabilités, dont dépend le seuil issu des coûts (diagnostic, non optimisé).
+        "brier": float(brier_score_loss(test[CIBLE], proba)),
         "gain_vs_plein": en_euros_par_an(intervalle_gain(test["jour"], regrets_plein, regrets)),
     })
     return pipeline, resultat, regrets
