@@ -12,15 +12,17 @@ Hypothèses fictives : 40 véhicules, 60 L par plein, 1 plein par semaine, soit 
 
 Regret d'une décision = prix payé − min(prix aujourd'hui, prix dans 3 jours), en c€/L.
 
-| Stratégie | Regret moyen (c€/L) |
-|---|---|
-| Toujours faire le plein tout de suite (situation actuelle) | 1,24 |
-| Toujours attendre 3 jours | 1,60 |
-| Modèle sans Brent, seuil issu des coûts | 0,90 |
-| Modèle avec Brent de la veille, seuil 0,5 | 0,86 |
-| **Modèle avec Brent de la veille, seuil issu des coûts (0,26)** | **0,66** |
-| Modèle avec Brent à 8 jours de retard, seuil issu des coûts | 0,93 |
-| Plafond : connaître l'avenir | 0,00 |
+| Stratégie | Regret moyen (c€/L) | Gain sur la situation actuelle (c€/L, IC 95 %) |
+|---|---|---|
+| Toujours faire le plein tout de suite (situation actuelle) | 1,24 | — |
+| Toujours attendre 3 jours | 1,60 | perte |
+| **Modèle sans Brent, seuil issu des coûts (0,26) : utilisable aujourd'hui** | **0,90** | **0,34 [0,07 ; 0,66], ≈ 420 €/an** |
+| Modèle avec Brent de la veille, seuil 0,5 | 0,86 | — |
+| Modèle avec Brent de la veille, seuil issu des coûts : suppose un flux quotidien payant | 0,66 | 0,58 [0,20 ; 1,04], ≈ 730 €/an |
+| Modèle avec Brent à 8 jours de retard (source gratuite), seuil issu des coûts | 0,93 | 0,31 [0,10 ; 0,58] |
+| Plafond : connaître l'avenir | 0,00 | 1,24, ≈ 1 550 €/an |
+
+L'intervalle de confiance vient d'un bootstrap par semaines de la période de test (24 semaines) : les stations d'un même jour, et les jours proches, bougent ensemble. Il est large : le gain est positif, mais sa taille est incertaine.
 
 - ROC-AUC de 0,70 sur le test, et de 0,69 ± 0,01 en validation croisée (modèle avec Brent de la veille).
 - La variable la plus utile est la variation du Brent sur 7 jours (importance par permutation).
@@ -37,7 +39,7 @@ Pour chaque station habituelle, le modèle propose jusqu'à 3 stations à moins 
 
 Le temps du chauffeur mange presque tout le gain d'un détour. Le levier ne vaut que pour des stations déjà sur la tournée : c'est au gestionnaire de le vérifier, car les tournées ne sont pas dans les données.
 
-Le meilleur écart avec la situation actuelle est de 0,58 c€/L, soit environ 730 € par an pour la flotte fictive (124 800 L). Le plafond (connaître l'avenir) vaut 1,24 c€/L, soit environ 1 550 € par an : l'enjeu est modeste.
+**En titre : le modèle sans Brent**, le seul utilisable avec les sources gratuites, fait gagner 0,34 c€/L sur la situation actuelle, soit environ 420 € par an pour la flotte fictive (124 800 L). Un cours du Brent de la veille ajoute 0,25 c€/L [0,04 ; 0,48], soit environ 310 € par an : un abonnement au cours quotidien ne vaut la peine que s'il coûte moins. Le plafond (connaître l'avenir) vaut 1,24 c€/L, soit environ 1 550 € par an : l'enjeu du jour du plein est modeste.
 
 ## Lancer le projet
 
@@ -46,7 +48,7 @@ Dans un environnement virtuel (`python -m venv .venv`, puis `source .venv/bin/ac
 ```bash
 pip install -r requirements.txt
 python -m backend.train                 # téléchargement, SQLite + table d'analyse SQL + entraînement
-python -m pytest                        # 58 tests
+python -m pytest                        # 63 tests
 python -m streamlit run frontend/app.py # démonstrateur
 ```
 

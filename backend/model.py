@@ -218,3 +218,22 @@ def evaluer_choix_station(
         "gain_moyen_plein_euros": gain_plein,
         "economie_annuelle_euros": gain_plein * PLEINS_PAR_AN,
     }
+
+
+def intervalle_gain(
+    jours, regret_reference, regret_strategie, taille_bloc_jours: int = 7, n_tirages: int = 2000,
+    seed: int = SEED,
+) -> dict:
+    """Gain moyen (c€/L) d'une stratégie sur une référence, avec un intervalle de confiance à 95 %.
+
+    Bootstrap par blocs de `taille_bloc_jours` jours consécutifs : toutes les stations d'un même jour,
+    et les jours proches, bougent ensemble ; tirer des lignes isolées donnerait un intervalle trop étroit."""
+    ecart = np.asarray(regret_reference, dtype=float) - np.asarray(regret_strategie, dtype=float)
+    dates = pd.to_datetime(pd.Series(np.asarray(jours)))
+    blocs = ((dates - dates.min()).dt.days // taille_bloc_jours).to_numpy()
+    sommes, comptes = np.bincount(blocs, weights=ecart), np.bincount(blocs)
+    sommes, comptes = sommes[comptes > 0], comptes[comptes > 0]
+    tirages = np.random.default_rng(seed).integers(0, len(comptes), size=(n_tirages, len(comptes)))
+    gains = sommes[tirages].sum(axis=1) / comptes[tirages].sum(axis=1)
+    bas, haut = np.percentile(gains, [2.5, 97.5])
+    return {"moyenne": float(ecart.mean()), "bas": float(bas), "haut": float(haut)}
