@@ -1,6 +1,7 @@
 # Conception : SEP Conseil et Livraisons Exemple, aide au plein de la flotte
 
 > Document de travail (2026-10-20). Il sert à planifier le développement. Il ne fait pas partie du livrable : le retirer ou le déplacer avant le rendu.
+> **Mise à jour du 2026-10-21 :** les sources ont changé (flux quotidien data.gouv.fr + BCE, Brent retiré). Voir `docs/adr/0001-sources-flux-quotidien-et-bce.md`. Les passages sur le Brent ci-dessous sont historiques.
 > Règle de fond : reproduire **la forme exacte** de `exemple_projet_a_suivre/exemple_livrable/` (German Credit), avec nos données et notre question.
 
 ## 1. Intention

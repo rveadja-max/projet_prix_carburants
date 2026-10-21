@@ -23,18 +23,18 @@ Ne prétends jamais qu'une fonction, un test, une source ou un résultat existe 
 
 ## 3. Question business
 
-La PME Livraisons Exemple (client fictif, basée dans le Nord) fait le plein de ses 40 utilitaires diesel une fois par semaine, dans les stations de ses tournées (Nord et Pas-de-Calais). **Pour une station donnée, faut-il faire le plein aujourd'hui ou attendre 3 jours, et combien la flotte économise-t-elle en suivant le modèle ?** Les prix du gazole sont croisés avec le cours du Brent et le taux euro/dollar. Le modèle est une aide à la décision : le gestionnaire de flotte décide.
+La PME Livraisons Exemple (client fictif, basée dans le Nord) fait le plein de ses 40 utilitaires diesel une fois par semaine, dans les stations de ses tournées (Nord et Pas-de-Calais). **Pour une station donnée, faut-il faire le plein aujourd'hui ou attendre 3 jours, et combien la flotte économise-t-elle en suivant le modèle ?** Les prix du gazole sont croisés avec le taux euro/dollar de la BCE. L'outil dit aussi, chaque jour, quelles stations proches sont moins chères, ouvertes et sans rupture. Le modèle est une aide à la décision : le gestionnaire de flotte décide.
 
 Le détail (hypothèses de flotte, corrections après autocritique, décisions) est dans `docs/superpowers/specs/2026-10-20-plein-flotte-design.md`.
 
 ## 4. Exigences fonctionnelles et techniques
 
-### 4.1 Sources de données (vérifiées le 2026-10-20)
+### 4.1 Sources de données (consigne du professeur, vérifiées le 2026-10-21, décision : `docs/adr/0001-sources-flux-quotidien-et-bce.md`)
 
-- **Historique (source principale)** : archives annuelles XML zippées publiées sur https://www.prix-carburants.gouv.fr/rubrique/opendata/ , aux URL `https://donnees.roulez-eco.fr/opendata/annee/AAAA` (2007 à l'année en cours). Périmètre retenu : **2025 et 2026** (2026 = année en cours, fichier mis à jour chaque jour). Licence Ouverte.
-- **Brent quotidien** : EIA (domaine public), série DCOILBRENTEU, via le miroir CSV de FRED : https://fred.stlouisfed.org/graph/fredgraph.csv?id=DCOILBRENTEU&cosd=2024-12-01
-- **Taux euro/dollar quotidien** : BCE : https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?format=csvdata&startPeriod=2024-12-01
-- La page citée dans le cadrage (`.../prix-des-carburants-en-france-flux-quotidien`, sans `-1`) n'est plus maintenue : ses liens renvoient une erreur 404. Changement de source à faire valider par l'équipe.
+- **Flux quotidien (source principale, lien stable imposé)** : https://explore.data.gouv.fr/fr/datasets/6615d83d7d7c66d5ec00c511/#/resources/336c34b5-a527-4c35-b84d-18462daa7c51 ; téléchargement : https://www.data.gouv.fr/api/1/datasets/r/336c34b5-a527-4c35-b84d-18462daa7c51 (redirige vers l'export CSV de data.economie.gouv.fr). C'est une **photo de la veille** : référentiel des stations, coordonnées, fermetures, ruptures, dernier prix. **Sans historique.** Licence Ouverte.
+- **Taux euro/dollar quotidien (croisement)** : BCE : https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?format=csvdata&startPeriod=2024-12-01
+- **Historique des prix (complément nécessaire)** : archives annuelles XML du même producteur, cité par la page data.gouv.fr comme source du flux : `https://donnees.roulez-eco.fr/opendata/annee/AAAA`, années **2025 et 2026**. Elles ne servent qu'à l'historique ; référentiel et coordonnées viennent du flux.
+- Le Brent (FRED) est retiré : la consigne ne cite que ces deux sources.
 - Les données brutes sont exclues de Git. Elles sont récupérées par `python -m backend.download`, qui note URL, date, taille et SHA-256 dans un manifeste. Un dépôt cloné dans un dossier vide doit pouvoir tout reconstruire.
 
 ### 4.2 Exigences du cahier des charges
