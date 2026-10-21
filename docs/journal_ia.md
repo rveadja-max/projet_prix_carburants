@@ -18,6 +18,7 @@
 | 10 | Modèle sans Brent en titre | idem | Intervalle de confiance par bootstrap, valeur d'un Brent quotidien | Tout | Bootstrap par jours remplacé par un bootstrap par semaines : les jours proches sont corrélés, l'intervalle par jours était trop étroit (**validation**) | |
 | 11 | Regret par mois | idem | Tableau mensuel | Tout | | |
 | 12 | Calibration | idem | Calibration isotonique sur les plis temporels | Le diagnostic (score de Brier) | | Calibration refusée : pire sur la validation de l'entraînement (regret 0,638 → 0,888 avec Brent). Décidé sur l'entraînement, pas sur le test (**fuite de données** évitée : choisir sur le test) |
+| 13 | Nouvelle consigne : flux quotidien data.gouv.fr + BCE | Refaire la base avec le lien imposé et le taux BCE, corriger les erreurs | Analyse du flux (photo de la veille, sans historique), ADR-0001, nouveau schéma SQL (`schema.sql`), référentiel du flux (fermetures, ruptures, coordonnées), conseil du jour, 2 modèles prix seuls / prix + taux, choix en validation croisée, onglets Décision / Exploration / Le modèle | Tout | Suffixe « +00:00 » du flux reconnu comme faux en comparant aux archives (**fuite de données** évitée : décalage de 2 h sur « prix connu avant midi ») ; prix du flux datant de 2009 qui faisaient remonter le calendrier, trouvé par le diagnostic qualité et corrigé avec un test (**validation**) | Changer de modèle après avoir vu que « prix seuls » fait mieux sur le test : refusé (**fuite de données** : choisir sur le test) |
 
 ## Les catégories de la checklist du TD 4
 
