@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LLM Council — Revue globale du projet (plein de la flotte)</title>
+<style>
+  :root{
+    --ink:#1c2333; --muted:#5b6474; --line:#e3e7ee; --bg:#f6f8fb; --card:#ffffff;
+    --accent:#1f3b6e; --agree:#0b6e4f; --clash:#b3541e; --blind:#7a4fa3; --reco:#1f3b6e;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+       background:var(--bg);color:var(--ink);line-height:1.6}
+  .wrap{max-width:920px;margin:0 auto;padding:32px 20px 64px}
+  header.top{background:linear-gradient(135deg,#1f3b6e,#2b5296);color:#fff;border-radius:14px;
+       padding:26px 28px;margin-bottom:22px;box-shadow:0 6px 24px rgba(31,59,110,.18)}
+  header.top h1{margin:0 0 6px;font-size:24px}
+  header.top p{margin:4px 0;color:#dbe4f5;font-size:14px}
+  .q{background:#eef2fb;border-left:4px solid var(--accent);padding:14px 16px;border-radius:8px;
+     font-size:14.5px;color:#2a3550;margin:14px 0 0}
+  h2.sec{display:flex;align-items:center;gap:10px;font-size:18px;margin:30px 0 12px}
+  .dot{width:12px;height:12px;border-radius:50%;display:inline-block}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 20px;
+        margin-bottom:14px;box-shadow:0 1px 3px rgba(20,30,60,.05)}
+  .verdict{background:#fff;border:1.5px solid var(--accent);border-radius:14px;padding:6px 22px 20px;
+        box-shadow:0 8px 28px rgba(31,59,110,.10)}
+  .verdict h3{color:var(--accent);margin:18px 0 8px;font-size:16px}
+  ul{margin:8px 0;padding-left:20px}
+  li{margin:6px 0}
+  .pill{display:inline-block;font-size:11px;font-weight:600;letter-spacing:.4px;text-transform:uppercase;
+        padding:3px 9px;border-radius:999px;color:#fff;vertical-align:middle}
+  .p-agree{background:var(--agree)} .p-clash{background:var(--clash)} .p-blind{background:var(--blind)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:14px 0}
+  .adv{background:#fff;border:1px solid var(--line);border-radius:10px;padding:12px;font-size:12.5px}
+  .adv b{display:block;font-size:13px;margin-bottom:4px}
+  .adv .tag{font-size:10.5px;color:var(--muted)}
+  .adv.strong{border-color:var(--agree);box-shadow:0 0 0 2px rgba(11,110,79,.12)}
+  .adv.weak{border-color:var(--clash);box-shadow:0 0 0 2px rgba(179,84,30,.10)}
+  details{background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;overflow:hidden}
+  details summary{cursor:pointer;padding:13px 16px;font-weight:600;list-style:none;font-size:14.5px}
+  details summary::-webkit-details-marker{display:none}
+  details summary::after{content:"+";float:right;color:var(--accent);font-weight:700}
+  details[open] summary::after{content:"–"}
+  details .body{padding:0 18px 16px;font-size:14px;color:#33405a;border-top:1px solid var(--line);padding-top:12px}
+  .one{background:#0b6e4f;color:#fff;border-radius:12px;padding:18px 22px;font-size:15px}
+  .one b{color:#cff3e4}
+  footer{margin-top:26px;text-align:center;color:var(--muted);font-size:12.5px}
+  code{background:#eef1f6;padding:1px 5px;border-radius:5px;font-size:12.5px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <h1>LLM Council — Revue globale du projet</h1>
+    <p>Aide au plein de la flotte (Livraisons Exemple) · Projet de formation data mining</p>
+    <p>SEP Conseil : Liam Arnault · Samuel Sidoli · Hervé Adjakossa · Antoine Pholulamdeth</p>
+    <div class="q">
+      <b>Question soumise au conseil :</b> la logique métier et les fonctionnalités sont-elles
+      défendables, et le rendu est-il de qualité et raisonnablement calibré sur les données ?
+    </div>
+  </header>
+
+  <!-- Verdict -->
+  <section class="verdict">
+    <h2 class="sec" style="margin-top:14px"><span class="dot" style="background:var(--reco)"></span>Verdict du Chairman</h2>
+
+    <h3>Le rendu est défendable dans sa démarche — pas encore dans ses chiffres ni dans son récit.</h3>
+    <p>La démarche (cartes, journal IA, plafond affiché, 3 écrans, séparation backend/frontend) n'est
+    contestée par <b>aucun</b> conseiller. Deux risques sont en revanche <b>éliminatoires pour la note</b>
+    et doivent être traités avant toute autre chose :</p>
+    <ul>
+      <li><b>Refaire l'évaluation honnêtement</b> : choisir le modèle sur la <i>validation</i>
+      (ce qui livrera « sans Brent », le seul déployable), intervalles de confiance <b>clusterisés par
+      semaine</b> (vrai N ≈ 24, pas 55 262), annualisation sur la <b>borne basse (~87 €/an, pas 420)</b>,
+      analyse de sensibilité du seuil 0,26, coût logistique de l'attente (~0,7 €/plein vs détour),
+      justification de la purge de 3 j.</li>
+      <li><b>Retourner le récit</b> : faire de « quel levier vaut combien ? » la colonne vertébrale de la
+      soutenance, avec la conclusion honnête en titre — le timing vaut ~0,2 % du budget, la station ~6×
+      plus, et le modèle supervisé (exigé par la grille) sert à le <i>prouver chiffré</i>.</li>
+    </ul>
+
+    <h3><span class="pill p-agree">Consensus</span> Où le conseil s'accorde</h3>
+    <ul>
+      <li>La matérialité économique du levier « timing » est faible et le récit ne l'assume pas.</li>
+      <li>Le levier « station » domine le levier « timing » d'un facteur ~6.</li>
+      <li>Le gain de 420 €/an est fragile statistiquement (concentré sur mai-juin, juillet négatif).</li>
+    </ul>
+
+    <h3><span class="pill p-clash">Désaccord</span> Où le conseil s'affronte</h3>
+    <ul>
+      <li><b>Faut-il un modèle ?</b> B dit « non, pas pour le timing » ; D tranche : l'honnêteté devient
+      le titre, le modèle reste (exigé par la grille) mais repositionné en quantificateur d'un levier borné.</li>
+      <li><b>Fusionner « où » + « quand » (≈3 100 €/an) ?</b> Rejeté à l'unanimité des relecteurs : deux
+      estimations corrélées ne s'additionnent pas.</li>
+      <li><b>Quel modèle livrer ?</b> A démontre que seul « sans Brent » est déployable ; non réfuté.</li>
+    </ul>
+
+    <h3><span class="pill p-blind">Angles morts</span> Ce que la relecture a révélé</h3>
+    <ul>
+      <li>Le coût logistique d'« attendre 3 jours » n'a jamais été calculé — le gain peut être négatif en coût complet.</li>
+      <li>Les prix ne sont pas déclarés quotidiennement : le « prix à J+3 » est souvent reporté → cible plate.</li>
+      <li>Personne n'a relu <code>seuil_optimal</code> ni la Data Quality Card avant de débattre des chiffres.</li>
+      <li>La grille N3 sanctionne surtout la <b>fuite de données</b> et le <b>choix sur le test</b>.</li>
+    </ul>
+  </section>
+
+  <!-- The one thing -->
+  <h2 class="sec"><span class="dot" style="background:var(--agree)"></span>La seule chose à faire d'abord</h2>
+  <div class="one">
+    Exécuter, chronomètre en main, le <b>test du clone vide sur une machine avec réseau</b> :
+    <code>git clone</code> → <code>pip install -r requirements.txt</code> → <code>python -m backend.train</code>
+    → <code>python -m pytest</code> → <code>streamlit run frontend/app.py</code>.
+    C'est le critère qui coûte le plus de points, il n'a jamais été validé de bout en bout, et il produit le
+    <code>metriques.json</code> frais dont dépendent tous les chiffres corrigés ensuite.
+  </div>
+
+  <!-- Advisor alignment -->
+  <h2 class="sec"><span class="dot" style="background:var(--accent)"></span>Alignement des conseillers</h2>
+  <div class="grid">
+    <div class="adv strong"><b>Contrarian</b><span class="tag">jugé le plus fort (4/5)</span>
+      Validité statistique : choix du modèle sur le test, IC en pseudo-réplication, annualisation biaisée.</div>
+    <div class="adv"><b>First Principles</b><span class="tag">le plus fort (1/5)</span>
+      Recadre : fallait-il un modèle ? Le levier « station » domine ; la cible jette l'économie.</div>
+    <div class="adv weak"><b>Expansionist</b><span class="tag">plus grand angle mort (5/5)</span>
+      Empile des fonctionnalités sans valider le socle ; l'addition 3 100 € est rejetée.</div>
+    <div class="adv"><b>Outsider</b><span class="tag">confusion d'un œil neuf</span>
+      « Regret 1,24 c€/L » non défini ; cas métier économiquement faible non assumé.</div>
+    <div class="adv"><b>Executor</b><span class="tag">blocage opérationnel</span>
+      « Tourne depuis un clone vide » jamais validé de bout en bout avec réseau.</div>
+  </div>
+
+  <!-- Full advisor responses -->
+  <h2 class="sec"><span class="dot" style="background:var(--muted)"></span>Réponses complètes des conseillers</h2>
+
+  <details><summary>The Contrarian</summary><div class="body">
+    Quel modèle est livrable ? Brent veille gagne (0,66) mais le Brent gratuit a 8 j de retard et Brent 8 j (0,93)
+    fait pire que sans Brent (0,90) → seul « sans Brent » est déployable. Choisir « Brent veille » sur le regret
+    test = choix de modèle sur le test, ce que la grille pénalise le plus. 420 €/an gonflés (gain concentré
+    mai-juin, juillet négatif ; borne basse d'IC ≈ 87 €/an). IC trop étroit : 55 262 lignes corrélées, vrai
+    N ≈ 24 semaines → refaire clusterisé par semaine. Purge de 3 j suffisante avec des fenêtres 7-30 j ? Saut du
+    1er janv 2026 = aveu d'échec sur un critère noté. Seuil 0,26 sans analyse de sensibilité. 420 € = 0,2 % du
+    budget (~212 k€), 20 c€/plein : défendre la matérialité ou assumer la démo pédagogique.
+  </div></details>
+
+  <details><summary>The First Principles Thinker</summary><div class="body">
+    La vraie question n'est pas « prédire une hausse à J+3 » : la flotte ne gagne que si la variance du prix sur
+    3 j dépasse le coût de la décision ; on capture 27 % d'un gâteau = 0,2 % du budget. Fallait-il un modèle ?
+    Réponse possible : « non, pas pour le timing — voici la preuve chiffrée ». (1) La cible « hausse stricte »
+    jette l'économie (+0,1 et +5 c€ pareils) ; la décision dépend de l'espérance — prédire le delta ? (2) Le seuil
+    0,26 suppose une asymétrie de coûts absente des prix. (3) Le levier est ailleurs : le choix de station
+    (>5 c€/L) domine le timing (0,9). Reformulation : « quel levier — station, jour, ou les deux — vaut combien ? »
+  </div></details>
+
+  <details><summary>The Expansionist</summary><div class="body">
+    Le « où » pèse 6× le « quand » (2 710 € vs 420 €) → fusionner en « ici + aujourd'hui » ≈3 100 €/an = chiffre
+    de titre. Rendre la valeur visible : compteur d'économies, export PDF hebdo, job quotidien → du produit.
+    Démo vivante le jour J. Bonus : détection d'anomalies (écran « Opportunités »). Simulateur what-if (Brent
+    +5 $). Réplicabilité (une ligne de config → essence/autre département). Benchmark externe vs baromètre
+    national. Tout réutilise l'existant : monétiser, automatiser, généraliser.
+  </div></details>
+
+  <details><summary>The Outsider</summary><div class="body">
+    Clair : la question « aujourd'hui ou +3 jours » est compréhensible ; les 3 onglets répondent au brief ; cartes
+    + journal IA inspirent confiance ; plafond et volumes fictifs = honnêteté. Flou : « regret 1,24 c€/L » non
+    défini ; on ne sait pas si 0,90 est spectaculaire ou marginal sans ancre (prix du litre ? règle naïve ?).
+    Inquiète : 420 €/an sur volumes fictifs dérisoire (10 €/an/véhicule) ; gain de 2 mois de crise sur une seule
+    période (chance ?) ; Brent « payant » pour 0,24 c€/L incohérent. Verdict : démarche sérieuse mais cas métier
+    faible non assumé — mettre l'honnêteté en titre, pas en note de bas de page.
+  </div></details>
+
+  <details><summary>The Executor</summary><div class="body">
+    Livrable, mais « tourne du premier coup depuis un clone vide » n'a jamais été validé de bout en bout avec
+    réseau = LE blocage. (1) Test du clone vide avec réseau chronométré (clone → pip → train → pytest → streamlit).
+    (2) Marquer les 14 tests réseau (skip si données absentes) pour un pytest hors-ligne vert. (3) Conflit chiffres
+    README / drift : figer la date + documenter, ou relancer le train la veille et recopier metriques.json.
+    (4) Avant remise : versions pinnées Ubuntu 24.04, aucun chemin absolu, AppTest sans réseau, PDF régénérés,
+    git propre. Risque : data.gouv.fr en panne le jour J → copie locale des brutes + manifeste.
+  </div></details>
+
+  <!-- Peer review -->
+  <details><summary>Relecture croisée (faits saillants)</summary><div class="body">
+    <ul>
+      <li><b>A jugée la plus forte par 4 relecteurs sur 5</b> : seule à attaquer la validité statistique
+      (choix sur le test, pseudo-réplication, annualisation) — fautes notées, falsifiables, corrigeables.</li>
+      <li><b>B jugée la plus forte par 1 relecteur</b> : recadrage décisionnel (espérance du delta, levier
+      « station » dominant).</li>
+      <li><b>C jugée le plus grand angle mort par les 5 relecteurs</b> : fonctionnalités empilées sur un socle
+      non validé ; addition d'estimations corrélées.</li>
+      <li>Angle mort de <b>B</b> : ignore que la grille impose une méthode supervisée.</li>
+      <li>Manques soulevés en relecture : coût logistique de l'attente ; prix non déclarés quotidiennement ;
+      reproductibilité des chiffres (metriques.json, seed, manifeste) ; la grille N3 sanctionne surtout fuite
+      et choix sur test.</li>
+    </ul>
+  </div></details>
+
+  <footer>
+    LLM Council · généré le 2026-10-31 · méthode d'Andrej Karpathy (5 conseillers → relecture croisée anonymisée → synthèse du chairman).<br>
+    Transcription complète : <code>docs/council-transcript-20261031-134801.md</code>
+  </footer>
+
+</div>
+</body>
+</html>
