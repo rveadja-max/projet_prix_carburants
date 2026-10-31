@@ -23,6 +23,18 @@ CIBLE = "hausse"
 VARIABLES_PROFIL = ["prix_relatif", "changements_par_semaine", "volatilite"]
 TAILLE_ECHANTILLON_PERMUTATION = 20000
 
+# Modèles déployables avec les sources gratuites (le Brent de la veille exige un flux payant).
+# Le modèle livré est choisi sur la VALIDATION (entraînement), jamais sur le test.
+MODELES_DEPLOYABLES = ("sans_brent", "brent_realiste")
+
+
+def choisir_modele_deployable(auc_cv: dict) -> str:
+    """Choisit le modèle à livrer parmi ceux déployables avec les sources gratuites, sur la
+    ROC-AUC moyenne en validation croisée temporelle (entraînement). Le test ne sert qu'à
+    mesurer, jamais à choisir : cela évite la sélection de modèle sur le jeu de test."""
+    deployables = {nom: m["roc_auc_cv_moyenne"] for nom, m in auc_cv.items() if nom in MODELES_DEPLOYABLES}
+    return max(deployables, key=deployables.get)
+
 
 def couts_moyens(variation_future, hausse) -> tuple[float, float]:
     """Coûts moyens (H, B) en c€/L, pour une variation future en €/L.

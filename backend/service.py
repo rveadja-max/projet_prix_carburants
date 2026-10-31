@@ -68,7 +68,10 @@ def conseiller(station: str, jour: str) -> dict:
             f"Pas de donnée pour {station} le {jour} (période de test : {m['debut_test']} à {m['fin_test']})"
         )
     ligne = lignes.iloc[0]
-    proba = float(_modele().predict_proba(lignes.iloc[[0]][VARIABLES_AVEC_BRENT])[0, 1])
+    m = metriques()
+    # Variables du modèle choisi sur la validation ; repli sur l'ancien schéma si la clé est absente.
+    variables = m.get("variables_modele_choisi", VARIABLES_AVEC_BRENT)
+    proba = float(_modele().predict_proba(lignes.iloc[[0]][variables])[0, 1])
     seuil = float(metriques()["seuil"])
     return {
         "station": str(station),

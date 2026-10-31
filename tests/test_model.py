@@ -4,8 +4,9 @@ import pandas as pd
 import pytest
 
 from backend.model import (
-    VARIABLES_PROFIL, VARIABLES_SANS_BRENT, cout_moyen, couts_moyens, couts_references,
-    creer_pipeline, decouper_temporel, evaluer, profils_stations, regret, segmenter, seuil_optimal,
+    MODELES_DEPLOYABLES, VARIABLES_PROFIL, VARIABLES_SANS_BRENT, choisir_modele_deployable,
+    cout_moyen, couts_moyens, couts_references, creer_pipeline, decouper_temporel, evaluer,
+    profils_stations, regret, segmenter, seuil_optimal,
 )
 
 
@@ -44,6 +45,22 @@ def test_split_temporel_sans_chevauchement():
     entrainement, test = decouper_temporel(pd.DataFrame({"jour": jours, "station": "S1"}), "2026-04-30", 3)
     assert entrainement["jour"].max() == "2026-04-30"
     assert test["jour"].min() == "2026-05-04"
+
+
+def test_choisir_modele_deployable_ne_choisit_jamais_avec_brent_et_prend_le_meilleur_en_validation():
+    # Le modèle avec le Brent de la veille (flux payant) a la meilleure ROC-AUC, mais il n'est
+    # pas déployable avec les sources gratuites : il ne doit jamais être choisi.
+    auc_cv = {
+        "sans_brent": {"roc_auc_cv_moyenne": 0.67},
+        "avec_brent": {"roc_auc_cv_moyenne": 0.69},
+        "brent_realiste": {"roc_auc_cv_moyenne": 0.65},
+    }
+    choisi = choisir_modele_deployable(auc_cv)
+    assert choisi in MODELES_DEPLOYABLES
+    assert choisi == "sans_brent"
+    # Si le Brent réaliste (8 j) fait mieux en validation, c'est lui qui est livré.
+    auc_cv["brent_realiste"]["roc_auc_cv_moyenne"] = 0.70
+    assert choisir_modele_deployable(auc_cv) == "brent_realiste"
 
 
 def test_segmenter_ajoute_k_segments():

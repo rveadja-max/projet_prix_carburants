@@ -13,9 +13,10 @@ from backend.config import (
 from backend.data import charger_brut_dans_sqlite, enregistrer_table_analyse, lire_stations, lire_table_analyse
 from backend.download import chemin_archive, telecharger_tout
 from backend.model import (
-    CIBLE, VARIABLES_AVEC_BRENT, VARIABLES_BRENT_REALISTE, VARIABLES_SANS_BRENT,
-    couts_moyens, couts_references, creer_pipeline, decouper_temporel, evaluer, evaluer_choix_station,
-    intervalle_gain, plis_temporels, profils_stations, regret, regret_par_mois, seuil_optimal,
+    CIBLE, MODELES_DEPLOYABLES, VARIABLES_AVEC_BRENT, VARIABLES_BRENT_REALISTE, VARIABLES_SANS_BRENT,
+    choisir_modele_deployable, couts_moyens, couts_references, creer_pipeline, decouper_temporel,
+    evaluer, evaluer_choix_station, intervalle_gain, plis_temporels, profils_stations, regret,
+    regret_par_mois, seuil_optimal,
 )
 
 MODELES = {
@@ -71,6 +72,10 @@ def main() -> dict:
     for nom, variables in MODELES.items():
         pipelines[nom], modeles[nom], regrets[nom] = entrainer_modele(variables, entrainement, test, seuil)
 
+    # Le modèle livré est choisi sur la validation croisée (entraînement), parmi les modèles
+    # déployables avec les sources gratuites. Le test ne sert qu'à mesurer, jamais à choisir.
+    modele_choisi = choisir_modele_deployable(modeles)
+
     couts = couts_references(test["variation_future"])
     # Choix de la station : alternatives apprises sur l'entraînement, gain mesuré sur le test.
     prix_litre = float(test["prix"].median())
@@ -94,6 +99,10 @@ def main() -> dict:
         "seuil": float(seuil),
         "litres_par_an": int(LITRES_PAR_AN),
         "pleins_par_an": int(PLEINS_PAR_AN),
+        # Modèle livré : choisi sur la validation, parmi les modèles déployables (sources gratuites).
+        "modele_choisi": modele_choisi,
+        "variables_modele_choisi": MODELES[modele_choisi],
+        "modeles_deployables": list(MODELES_DEPLOYABLES),
         "choix_station": choix_station,
         "couts": couts,
         "modeles": modeles,
@@ -110,7 +119,7 @@ def main() -> dict:
     }
 
     FICHIER_MODELE.parent.mkdir(parents=True, exist_ok=True)
-    joblib.dump(pipelines["avec_brent"], FICHIER_MODELE)
+    joblib.dump(pipelines[modele_choisi], FICHIER_MODELE)
     FICHIER_METRIQUES.write_text(json.dumps(metriques, indent=2, ensure_ascii=False), encoding="utf-8")
     return metriques
 
