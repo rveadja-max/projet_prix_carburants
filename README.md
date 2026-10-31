@@ -10,7 +10,7 @@ Hypothèses fictives : 40 véhicules, 60 L par plein, 1 plein par semaine, soit 
 
 ## Résultats (jeu de test : 55 262 lignes station-jour, du 2026-05-04 au 2026-10-16)
 
-Regret d'une décision = prix payé − min(prix aujourd'hui, prix dans 3 jours), en c€/L.
+Regret d'une décision = prix payé − min(prix aujourd'hui, prix dans 3 jours), en c€/L. Le **modèle livré est choisi sur la validation croisée** (entraînement), parmi les modèles utilisables avec les sources gratuites (sans Brent, Brent à 8 jours) ; le test ne sert qu'à mesurer, jamais à choisir. Le modèle avec le Brent de la veille n'est pas déployable gratuitement (flux quotidien payant) : il sert de référence haute, pas de modèle livré.
 
 | Stratégie | Regret moyen (c€/L) | Gain sur la situation actuelle (c€/L, IC 95 %) |
 |---|---|---|
@@ -52,7 +52,7 @@ Pour chaque station habituelle, le modèle propose jusqu'à 3 stations à moins 
 
 Le temps du chauffeur mange presque tout le gain d'un détour. Le levier ne vaut que pour des stations déjà sur la tournée : c'est au gestionnaire de le vérifier, car les tournées ne sont pas dans les données.
 
-**En titre : le modèle sans Brent**, le seul utilisable avec les sources gratuites, fait gagner 0,34 c€/L sur la situation actuelle, soit environ 420 € par an pour la flotte fictive (124 800 L). Un cours du Brent de la veille ajoute 0,25 c€/L [0,04 ; 0,48], soit environ 310 € par an : un abonnement au cours quotidien ne vaut la peine que s'il coûte moins. Le plafond (connaître l'avenir) vaut 1,24 c€/L, soit environ 1 550 € par an : l'enjeu du jour du plein est modeste.
+**En titre, l'honnêteté d'abord.** Le levier « jour du plein » est **modeste et borné** : le modèle sans Brent (le seul utilisable avec les sources gratuites, choisi sur la validation) fait gagner 0,34 c€/L, soit environ 420 € par an pour la flotte fictive (124 800 L) — **~0,2 % du budget carburant** (~212 k€/an), entre 90 et 830 € (IC 95 %), avec un plafond théorique de 1 550 €/an même en connaissant l'avenir. Le levier **« quelle station »** est ~6 fois plus gros : jusqu'à ≈ 2 710 €/an si la station moins chère est déjà sur la tournée. Un cours du Brent de la veille ajouterait 0,25 c€/L [0,04 ; 0,48] (~310 €/an) : un abonnement quotidien ne vaut la peine que s'il coûte moins. **Le vrai message métier : ce projet mesure quel levier (le jour, la station, ou les deux) vaut quelque chose, et combien — pas l'inverse.**
 
 ## Lancer le projet
 

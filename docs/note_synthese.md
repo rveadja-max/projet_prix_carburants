@@ -1,4 +1,4 @@
-# Note de synthèse : sans abonnement, le modèle fait gagner 0,34 c€/L (environ 420 € par an), un gain réel mais modeste
+# Note de synthèse : le jour du plein vaut ~0,2 % du budget — le choix de la station vaut ~6 fois plus
 
 **Pour :** gestionnaire de flotte, Livraisons Exemple · **De :** SEP Conseil — Liam Arnault, Samuel Sidoli, Hervé Adjakossa, Antoine Pholulamdeth · **Date :** 2026-10-20 · **Document :** livrable de formation, client fictif
 
@@ -14,7 +14,7 @@ Vous faites le plein de 40 utilitaires diesel une fois par semaine, dans le Nord
 
 1. **Les données :** 475 stations, 207 958 lignes station-jour. Beaucoup de stations n'envoient pas de prix tous les jours ; nous reportons le dernier prix sur 7 jours au plus et excluons le reste. Un saut de prix au 1er janvier 2026 n'est pas expliqué.
 2. **Les profils** : 3 groupes de stations. Les 67 stations « chères » sont à 7,76 c€/L au-dessus de la médiane de leur département en moyenne.
-3. **Le modèle :** sans Brent, le regret moyen passe de 1,24 à 0,90 c€/L sur 55 262 lignes que le modèle n'a jamais vues (du 2026-05-04 au 2026-10-16). Le gain, 0,34 c€/L, est positif mais incertain : intervalle de confiance à 95 % de 0,07 à 0,66 c€/L. Avec le Brent de la veille (flux payant), le regret descend à 0,66.
+3. **Le modèle :** sans Brent, le regret moyen passe de 1,24 à 0,90 c€/L sur 55 262 lignes que le modèle n'a jamais vues (du 2026-05-04 au 2026-10-16). Le gain, 0,34 c€/L (~0,2 % du budget carburant de la flotte), est positif mais incertain : intervalle de confiance à 95 % de 0,07 à 0,66 c€/L (soit 90 à 830 €/an). Le modèle livré est choisi sur la validation croisée, parmi les modèles utilisables avec les sources gratuites. Avec le Brent de la veille (flux payant), le regret descend à 0,66.
 4. **Le choix de la station :** une station moins chère à moins de 5 km ne rapporte presque rien s'il faut faire un détour (environ 66 € par an, temps du chauffeur compris). Si elle est déjà sur la tournée, le gain peut monter à environ 2 710 € par an. À vérifier avec vos tournées.
 
 ## Notre recommandation, chiffrée
