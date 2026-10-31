@@ -1,6 +1,6 @@
 # Note de cadrage : aide au plein de la flotte (gazole)
 
-**Équipe :** [à compléter par l'équipe] · **Dataset :** prix des carburants en France (prix-carburants.gouv.fr), croisé avec le cours du Brent (EIA via FRED) et le taux euro/dollar (BCE) · **Client imaginé :** Livraisons Exemple (PME, Nord), 40 utilitaires diesel ; le gestionnaire de flotte décide
+**Équipe :** Liam Arnault, Samuel Sidoli, Hervé Adjakossa, Antoine Pholulamdeth · **Dataset :** prix des carburants en France (flux quotidien data.gouv.fr et archives XML), croisé avec le cours du Brent (EIA via FRED) et le taux euro/dollar (BCE) · **Client imaginé :** Livraisons Exemple (PME, Nord), 40 utilitaires diesel ; le gestionnaire de flotte décide
 
 ## 1. La question business, en 2 lignes
 
@@ -43,4 +43,7 @@ Pour une station donnée, faut-il faire le plein de la flotte aujourd'hui ou att
 
 | Membre | Rôle principal (SQL et données, modèle, application, documents et soutenance) |
 |---|---|
-| [à compléter par l'équipe] | [à compléter par l'équipe] |
+| Liam Arnault | Data engineer / SQL : inventaire, parsing, table d'analyse |
+| Samuel Sidoli | Data scientist : exploration, modèles, clustering, métriques |
+| Hervé Adjakossa | Ingénieur backend / qualité : service, tests, intégration |
+| Antoine Pholulamdeth | Frontend / storytelling : Streamlit, visualisations, documents et soutenance |

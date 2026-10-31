@@ -1,6 +1,6 @@
 # SEP Conseil et Livraisons Exemple : aide au plein de la flotte
 
-> Projet de formation (data mining). Datasets : [prix des carburants en France](https://www.data.gouv.fr/fr/datasets/prix-des-carburants-en-france-flux-quotidien-1/) (Licence Ouverte), cours du Brent de l'EIA via [FRED](https://fred.stlouisfed.org/series/DCOILBRENTEU) (domaine public) et taux euro/dollar de la [BCE](https://data.ecb.europa.eu/). Équipe : [à compléter par l'équipe].
+> Projet de formation (data mining). Datasets : [prix des carburants en France](https://www.data.gouv.fr/fr/datasets/prix-des-carburants-en-france-flux-quotidien-1/) (Licence Ouverte), cours du Brent de l'EIA via [FRED](https://fred.stlouisfed.org/series/DCOILBRENTEU) (domaine public) et taux euro/dollar de la [BCE](https://data.ecb.europa.eu/). Équipe : Liam Arnault, Samuel Sidoli, Hervé Adjakossa, Antoine Pholulamdeth.
 
 ## Question business
 
@@ -107,4 +107,4 @@ models/                  modèle et métriques produits par l'entraînement (ign
 |---|---|
 | à remplir après le J3 | à remplir après le J3 |
 
-La note de synthèse est écrite en Markdown (`docs/note_synthese.md`), puis exportée en PDF (`docs/note_synthese.pdf`) à la main par l'équipe. Les slides sont exportées de la même façon en `docs/soutenance.pdf`.
+La note de synthèse est rédigée en Markdown (`docs/note_synthese.md`) et exportée en `docs/note_synthese.pdf` (2 pages). Les diapositives sont construites à partir de `docs/plan_soutenance.md` et exportées en `docs/soutenance.pdf` (couverture + 10 slides + annexes). Ces deux PDF sont versionnés ; les régénérer après toute mise à jour des chiffres (par exemple après un `python -m backend.train` avec réseau).

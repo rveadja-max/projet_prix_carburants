@@ -1,6 +1,6 @@
 # Note de synthèse : sans abonnement, le modèle fait gagner 0,34 c€/L (environ 420 € par an), un gain réel mais modeste
 
-**Pour :** gestionnaire de flotte, Livraisons Exemple · **De :** SEP Conseil ([équipe à compléter]) · **Date :** 2026-10-20 · **Document :** livrable de formation, client fictif
+**Pour :** gestionnaire de flotte, Livraisons Exemple · **De :** SEP Conseil — Liam Arnault, Samuel Sidoli, Hervé Adjakossa, Antoine Pholulamdeth · **Date :** 2026-10-20 · **Document :** livrable de formation, client fictif
 
 ## La décision que nous vous demandons
 
