@@ -17,6 +17,7 @@ import zipfile
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.request import urlopen
+import truststore
 
 from backend.config import (
     ANNEES,
@@ -32,6 +33,7 @@ from backend.config import (
     URL_TAUX,
 )
 
+truststore.inject_into_ssl()
 
 def url_archive(annee: int) -> str:
     return URL_ARCHIVE_ANNUELLE.format(annee=annee)

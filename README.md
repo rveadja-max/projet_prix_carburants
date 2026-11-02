@@ -72,7 +72,7 @@ Le temps du chauffeur mange presque tout le gain d'un détour. Le levier ne vaut
 
 ## Lancer le projet
 
-Dans un environnement virtuel (`python -m venv .venv`, puis `source .venv/bin/activate` sous WSL ou Linux) :
+Dans un environnement virtuel (`python -m venv .venv`, puis `source .venv/bin/activate` sous WSL et Linux ou `.venv\Scripts\activate` sur Windows) :
 
 ```bash
 pip install -r requirements.txt
