@@ -44,44 +44,55 @@ with onglet_decision:
     etat = service.etat_station(station)
 
     st.subheader(f"Conseil du {etat['jour_conseil']}")
+    st.info(f"Date de référence du conseil : {etat['jour_conseil']}. "
+            "Les prix affichés sont les derniers prix connus dans les données chargées, "
+            "pas des prix garantis en temps réel.")
+    indisponible = etat["fermee"] or etat["rupture"]
     if etat["fermee"]:
-        st.error("Station fermée aujourd'hui selon le flux : choisir une station proche ci-dessous.")
+        st.error("Station fermée selon le flux : choisir une autre station disponible.")
     if etat["rupture"]:
-        st.error("Rupture de gazole déclarée dans cette station : choisir une station proche ci-dessous.")
-    try:
-        conseil = service.conseil_du_jour(station)
-    except ValueError as erreur:
-        st.warning(str(erreur))
-    else:
-        colonne_proba, colonne_prix, colonne_taux = st.columns(3)
-        colonne_proba.metric("Probabilité de hausse dans 3 jours", f"{conseil['proba_hausse']:.0%}")
-        colonne_prix.metric("Prix connu à midi (€/L)", f"{conseil['prix']:.3f}")
-        colonne_taux.metric("Euro en dollars (BCE, veille)", f"{conseil['taux']:.4f}")
-        texte = f"Recommandation : {conseil['decision']} (seuil {conseil['seuil']:.0%}, modèle {conseil['modele']})"
-        if conseil["decision"] == service.DECISION_PLEIN:
-            st.success(texte)
+        st.error("Rupture de gazole déclarée : choisir une autre station disponible.")
+    if not indisponible:
+        try:
+            conseil = service.conseil_du_jour(station)
+        except ValueError as erreur:
+            st.warning(str(erreur))
         else:
-            st.warning(texte)
+            colonne_proba, colonne_prix, colonne_taux = st.columns(3)
+            colonne_proba.metric("Probabilité de hausse dans 3 jours", f"{conseil['proba_hausse']:.0%}")
+            colonne_prix.metric("Prix connu à midi (€/L)", f"{conseil['prix']:.3f}")
+            colonne_taux.metric("Euro en dollars (BCE, veille)", f"{conseil['taux']:.4f}")
+            texte = f"Recommandation : {conseil['decision']} (seuil {conseil['seuil']:.0%}, modèle {conseil['modele']})"
+            if conseil["decision"] == service.DECISION_PLEIN:
+                st.success(texte)
+            else:
+                st.warning(texte)
     if etat["prix_jour"] is not None:
         st.caption(f"Dernier prix publié dans le flux : {etat['prix_jour']:.3f} €/L le {etat['maj_prix_jour']}. "
                    f"Automate 24 h/24 : {'oui' if etat['automate_24_24'] else 'non'}.")
 
     rayon = metriques["choix_station"]["rayon_km"]
-    st.subheader(f"Stations moins chères aujourd'hui à proximité (moins de {rayon:.0f} km)")
+    st.subheader(f"Stations moins chères selon les derniers prix connus à proximité (moins de {rayon:.0f} km)")
     proches = service.alternatives(station)
     if proches.empty:
-        st.info("Aucune station proche ne fait gagner plus que le coût du détour : rester à cette station.")
+        if indisponible:
+            st.warning("Aucune alternative rentable trouvée. Chercher une autre station disponible, "
+                       "même si elle est plus chère ou plus éloignée.")
+        elif not etat["prix_frais"]:
+            st.info("Comparaison indisponible : le prix de cette station est absent ou périmé.")
+        else:
+            st.info("Aucune alternative rentable trouvée avec les prix connus et le coût du détour estimé.")
     else:
         st.dataframe(
             proches.drop(columns="station").rename(columns={
-                "ville": "Ville", "adresse": "Adresse", "prix_jour": "Prix du jour (€/L)",
+                "ville": "Ville", "adresse": "Adresse", "prix_jour": "Dernier prix connu (€/L)",
                 "distance_km": "Distance (km, vol d'oiseau)", "gain_c_l": "Moins chère de (c€/L)",
                 "gain_plein_euros": "Gain net par plein (€)",
             }),
             hide_index=True, width="stretch",
         )
     st.caption(
-        "Prix du jour du flux, stations ouvertes et sans rupture seulement. Gain net = écart × 60 L − coût du "
+        "Derniers prix connus du flux, stations sans fermeture ni rupture déclarée seulement. Gain net = écart × 60 L − coût du "
         "détour aller-retour (carburant et temps du chauffeur, hypothèses dans backend/config.py)."
     )
 
