@@ -127,3 +127,26 @@ models/                  modèle et métriques produits par l'entraînement (ign
 | à remplir après le J3 | à remplir après le J3 |
 
 La note de synthèse est écrite en Markdown (`docs/note_synthese.md`), puis exportée en PDF (`docs/note_synthese.pdf`) à la main par l'équipe. Les slides sont exportées de la même façon en `docs/soutenance.pdf`.
+
+
+## Contribution de sidolis : cohérence du conseil et date des données
+
+- Une station fermée ou en rupture ne reçoit plus de recommandation de plein ou d'attente.
+- Les alternatives rentables restent visibles. En leur absence, le message invite à rechercher
+  une autre station disponible, même plus chère ou plus éloignée, sans prétendre en avoir trouvé une.
+- Un prix absent ou périmé est distingué d'une absence d'alternative rentable.
+- La date de référence du conseil est mise en évidence ; les prix sont présentés comme les
+  derniers prix connus, sans garantie de temps réel.
+
+Vérifications réalisées : sept tests rapides des branches d'affichage avec interface simulée
+(station disponible, fermeture/rupture/cumul, alternatives, prix périmé, absence d'alternative,
+information de date et historique incomplet), compilation Python et contrôle du diff Git.
+
+```bash
+python -m unittest discover -s tests -p test_decision_affichage.py -v
+```
+
+Ces tests utilisent pandas, mais ne nécessitent ni Streamlit ni téléchargement ni entraînement.
+Ils ne remplacent pas une validation visuelle : la suite complète et la démonstration Streamlit
+restent à lancer dans l'environnement du projet avec ses données et son modèle.
+Les modifications ont été préparées avec l'assistance de ChatGPT/Codex.
