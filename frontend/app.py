@@ -44,6 +44,9 @@ with onglet_decision:
     etat = service.etat_station(station)
 
     st.subheader(f"Conseil du {etat['jour_conseil']}")
+    st.info(f"Date de référence du conseil : {etat['jour_conseil']}. "
+            "Les prix affichés sont les derniers prix connus dans les données chargées, "
+            "pas des prix garantis en temps réel.")
     indisponible = etat["fermee"] or etat["rupture"]
     if etat["fermee"]:
         st.error("Station fermée selon le flux : choisir une autre station disponible.")
@@ -69,7 +72,7 @@ with onglet_decision:
                    f"Automate 24 h/24 : {'oui' if etat['automate_24_24'] else 'non'}.")
 
     rayon = metriques["choix_station"]["rayon_km"]
-    st.subheader(f"Stations moins chères aujourd'hui à proximité (moins de {rayon:.0f} km)")
+    st.subheader(f"Stations moins chères selon les derniers prix connus à proximité (moins de {rayon:.0f} km)")
     proches = service.alternatives(station)
     if proches.empty:
         if indisponible:
@@ -82,14 +85,14 @@ with onglet_decision:
     else:
         st.dataframe(
             proches.drop(columns="station").rename(columns={
-                "ville": "Ville", "adresse": "Adresse", "prix_jour": "Prix du jour (€/L)",
+                "ville": "Ville", "adresse": "Adresse", "prix_jour": "Dernier prix connu (€/L)",
                 "distance_km": "Distance (km, vol d'oiseau)", "gain_c_l": "Moins chère de (c€/L)",
                 "gain_plein_euros": "Gain net par plein (€)",
             }),
             hide_index=True, width="stretch",
         )
     st.caption(
-        "Prix du jour du flux, stations ouvertes et sans rupture seulement. Gain net = écart × 60 L − coût du "
+        "Derniers prix connus du flux, stations sans fermeture ni rupture déclarée seulement. Gain net = écart × 60 L − coût du "
         "détour aller-retour (carburant et temps du chauffeur, hypothèses dans backend/config.py)."
     )
 
